@@ -1,0 +1,16 @@
+sdf:
+  address: sdf.org
+  user: zachnickel
+  comment: public endpoint
+  passfile: ./pass
+server:
+  address: 0.1.2.3
+  comment: dh secondary
+My server:
+  address: 1.2.3.4
+  user: root
+  comment: database
+aaaaaaa:
+  address: 2.3.4.5
+  user: opc
+  comment: bbbbbbb
