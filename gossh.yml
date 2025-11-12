@@ -14,3 +14,11 @@ aaaaaaa:
   address: 2.3.4.5
   user: opc
   comment: bbbbbbb
+aaaaaaa-1:
+  address: 2.3.4.5
+  user: opc
+  comment: bbbbbbb
+aaaaaaa-2:
+  address: 2.3.4.5
+  user: opc
+  comment: bbbbbbb
