@@ -145,6 +145,7 @@ func main() {
 	m.list.Title = "Go SSH Connection Manager"
 	m.list.Styles.Title = lipgloss.NewStyle().Background(lipgloss.Color("#045edb")).Padding(0, 1)
 	m.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+	m.list.Filter = list.UnsortedFilter
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
