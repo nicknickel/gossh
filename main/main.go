@@ -113,8 +113,13 @@ func runConnection(i connection.Item) tea.Cmd {
 
 	HandleTmux(windowName)
 
+	sshPassPath, err := exec.LookPath("sshpass")
+	if err != nil {
+		fmt.Printf("sshpass not found")
+	}
+
 	// determine correct program to run
-	if i.Conn.PassFile != "" {
+	if i.Conn.PassFile != "" && sshPassPath != "" {
 		connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
 	} else if i.Conn.IdentityFile != "" {
 		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
