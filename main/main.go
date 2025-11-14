@@ -135,16 +135,29 @@ func runConnection(i connection.Item) tea.Cmd {
 
 }
 
-func FilterFunc(term string, items []string) []list.Rank {
+func FilterFunc(t string, items []string) []list.Rank {
 	var results []list.Rank
+	terms := strings.Split(t, " ")
 
-	for i, v := range items {
-		props := strings.SplitN(v, " ", 4)
-		for _, val := range props {
-			if index := strings.Index(val, term); index > -1 {
-				results = append(results, list.Rank{Index: i, MatchedIndexes: nil})
-				continue
+	for i, item := range items {
+		termsMatched := 0
+		// want to make sure all space separated search words
+		// are found in one of the fields
+		for _, term := range terms {
+			// Splitting the FilterValue as it is space separated by
+			// i.Name + " " + i.Conn.Address + " " + i.Conn.User + " " + i.Conn.Description
+			searchFields := strings.SplitN(item, " ", 4)
+			for _, field := range searchFields {
+				if index := strings.Index(strings.ToLower(field), strings.ToLower(term)); index > -1 {
+					termsMatched++
+					break // term exists in one of the fields so don't need to keep looking
+				}
 			}
+
+		}
+
+		if termsMatched == len(terms) {
+			results = append(results, list.Rank{Index: i, MatchedIndexes: nil})
 		}
 	}
 
