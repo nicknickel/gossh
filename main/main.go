@@ -69,7 +69,7 @@ func HandleTmux(name string) error {
 	if name != "" {
 		c = exec.Command("tmux", "-2u", "rename-window", name)
 	} else {
-		c = exec.Command("tmux", "-2u", "set-window-option", "-w", "automatic-rename", "on")
+		c = exec.Command("tmux", "-2u", "set-window-option", "automatic-rename", "on")
 	}
 
 	// adjust tmux settings, if indicated
@@ -135,6 +135,22 @@ func runConnection(i connection.Item) tea.Cmd {
 
 }
 
+func FilterFunc(term string, items []string) []list.Rank {
+	var results []list.Rank
+
+	for i, v := range items {
+		props := strings.SplitN(v, " ", 4)
+		for _, val := range props {
+			if index := strings.Index(val, term); index > -1 {
+				results = append(results, list.Rank{Index: i, MatchedIndexes: nil})
+				continue
+			}
+		}
+	}
+
+	return results
+}
+
 func main() {
 
 	items := config.ReadConnections()
@@ -150,7 +166,7 @@ func main() {
 	m.list.Title = "Go SSH Connection Manager"
 	m.list.Styles.Title = lipgloss.NewStyle().Background(lipgloss.Color("#045edb")).Padding(0, 1)
 	m.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-	m.list.Filter = list.UnsortedFilter
+	m.list.Filter = FilterFunc
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 

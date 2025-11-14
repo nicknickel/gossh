@@ -1,5 +1,4 @@
-sdf:
-  address: sdf.org
+sdf.org:
   user: zachnickel
   comment: public endpoint
   passfile: ./pass
