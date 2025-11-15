@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/nicknickel/gossh/config"
-	"github.com/nicknickel/gossh/connection"
+	"github.com/nicknickel/gossh/internal/config"
+	"github.com/nicknickel/gossh/internal/connection"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
