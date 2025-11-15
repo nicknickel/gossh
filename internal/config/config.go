@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/nicknickel/gossh/connection"
+	"github.com/nicknickel/gossh/internal/connection"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,9 +44,29 @@ func NormalizeString(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(s), "-", ""), "_", "")
 }
 
+func SortConns(c map[string]connection.Connection) []list.Item {
+	keys := make([]string, len(c))
+	var conns []list.Item
+
+	i := 0
+	for k := range c {
+		keys[i] = k
+		i++
+	}
+
+	slices.SortStableFunc(keys, func(a, b string) int {
+		return strings.Compare(NormalizeString(a), NormalizeString(b))
+	})
+
+	for _, key := range keys {
+		conns = append(conns, connection.Item{Name: key, Conn: c[key]})
+	}
+
+	return conns
+}
+
 func ReadConnections() []list.Item {
 	config := make(map[string]connection.Connection)
-	var conns []list.Item
 
 	for _, file := range ConfigFiles() {
 		f, err := os.ReadFile(file)
@@ -66,26 +86,5 @@ func ReadConnections() []list.Item {
 		}
 	}
 
-	// Source - https://stackoverflow.com/a
-	// Posted by Vinay Pai, modified by community. See post 'Timeline' for change history
-	// Retrieved 2025-11-06, License - CC BY-SA 3.0
-
-	keys := make([]string, len(config))
-
-	i := 0
-	for k, _ := range config {
-		keys[i] = k
-		i++
-	}
-
-	slices.SortStableFunc(keys, func(a, b string) int {
-		return strings.Compare(NormalizeString(a), NormalizeString(b))
-	})
-
-	for _, key := range keys {
-		conns = append(conns, connection.Item{Name: key, Conn: config[key]})
-	}
-
-	return conns
-
+	return SortConns(config)
 }
