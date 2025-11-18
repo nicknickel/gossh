@@ -11,6 +11,7 @@ builds:
       - linux
       - windows
       - darwin
+    main: ./cmd/main.go
 
 archives:
   - formats: [tar.gz]
