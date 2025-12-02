@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nicknickel/gossh/internal/config"
 	"github.com/nicknickel/gossh/internal/connection"
+	"github.com/nicknickel/gossh/internal/encryption"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
@@ -120,7 +121,13 @@ func runConnection(i connection.Item) tea.Cmd {
 
 	// determine correct program to run
 	if i.Conn.PassFile != "" && sshPassPath != "" {
-		connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+		pw := encryption.GetEncryptedPassword(i.Conn.PassFile)
+		if pw == "" {
+			connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+		} else {
+			connCmd = exec.Command("sshpass", "-e", "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+			connCmd.Env = append(connCmd.Environ(), "SSHPASS="+pw)
+		}
 	} else if i.Conn.IdentityFile != "" {
 		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
 	} else {

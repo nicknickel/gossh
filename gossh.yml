@@ -1,7 +1,7 @@
 sdf.org:
   user: zachnickel
   comment: public endpoint
-  passfile: ./pass
+  passfile: /workspaces/gossh/pass_encrypted
 server:
   address: 0.1.2.3
   comment: dh secondary
