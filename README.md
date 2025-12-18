@@ -32,7 +32,6 @@ The following keys are supported for a given connection:
 Several environment variables are also supported:
 * `GOSSH_TMUX`: (string) When not empty will attempt to set the tmux window name
 * `GOSSH_PASSPHRASE`: (string) Uses contents as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
-* `GOSSH_PASSPHRASE_FILE`: (path to file) Uses contents of file as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
 
 ## Roadmap
 - [ ] Multiple tmux panes for multiple connections
