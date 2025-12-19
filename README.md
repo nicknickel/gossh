@@ -45,3 +45,8 @@ Several environment variables are also supported:
 The application uses Bubbletea's logging mechanism. Logs are written to `~/.gossh.log` in the user's home directory. For debug-level logging, set the `GOSSH_DEBUG` environment variable to a non-empty value. If the log file cannot be opened, logging falls back to stderr.
 
 The log file will rollover to `~/.gossh.log.old` once it reaches the size specified by `GOSSH_LOG_ROLLOVER` (default 1MB).
+
+
+## Testing
+
+You can run the tests with `go test ./... -v`
