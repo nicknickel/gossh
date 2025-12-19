@@ -32,9 +32,16 @@ The following keys are supported for a given connection:
 Several environment variables are also supported:
 * `GOSSH_TMUX`: (string) When not empty will attempt to set the tmux window name
 * `GOSSH_PASSPHRASE`: (string) Uses contents as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
+* `GOSSH_LOG_ROLLOVER`: (integer) Sets the maximum size in bytes for the log file before rollover. Defaults to 1048576 (1MB) if not set.
 
 ## Roadmap
 - [ ] Multiple tmux panes for multiple connections
 - [x] Encrypted password files using an ssh key
-- [ ] Improve and unify logging
+- [x] Improve and unify logging
 - [ ] Increase test coverage
+
+## Logging
+
+The application uses Bubbletea's logging mechanism. Logs are written to `~/.gossh.log` in the user's home directory. For debug-level logging, set the `GOSSH_DEBUG` environment variable to a non-empty value. If the log file cannot be opened, logging falls back to stderr.
+
+The log file will rollover to `~/.gossh.log.old` once it reaches the size specified by `GOSSH_LOG_ROLLOVER` (default 1MB).
