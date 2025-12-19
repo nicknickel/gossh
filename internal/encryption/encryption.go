@@ -2,11 +2,11 @@ package encryption
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 
 	"filippo.io/age"
+	"github.com/nicknickel/gossh/internal/log"
 )
 
 func GetPassphrase() string {
@@ -28,21 +28,21 @@ func GetEncryptedPassword(encFile string) string {
 
 	identity, err := age.NewScryptIdentity(p)
 	if err != nil {
-		fmt.Println("Could not create a new scrypt identity")
+		log.Logger.Error("Could not create a new scrypt identity", "err", err)
 	}
 
 	f, err := os.Open(encFile)
 	if err != nil {
-		fmt.Printf("Failed to open file: %v", err)
+		log.Logger.Error("Failed to open file", "file", encFile, "err", err)
 	}
 
 	r, err := age.Decrypt(f, identity)
 	if err != nil {
-		fmt.Printf("Failed to open encrypted file: %v", err)
+		log.Logger.Error("Failed to open encrypted file", "file", encFile, "err", err)
 	}
 	out := &bytes.Buffer{}
 	if _, err := io.Copy(out, r); err != nil {
-		fmt.Printf("Failed to read encrypted file: %v", err)
+		log.Logger.Error("Failed to read encrypted file", "file", encFile, "err", err)
 	}
 
 	return out.String()

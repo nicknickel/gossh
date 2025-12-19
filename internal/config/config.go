@@ -1,13 +1,13 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/nicknickel/gossh/internal/connection"
+	"github.com/nicknickel/gossh/internal/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,7 +27,7 @@ func ConfigFiles() []string {
 	files, err := os.ReadDir(configDir)
 	if err != nil {
 		if os.IsExist(err) {
-			fmt.Printf("Cannot read %v due to: %v\n", configDir, err)
+			log.Logger.Error("Cannot read config directory", "dir", configDir, "err", err)
 		}
 		return loc
 	}
@@ -72,7 +72,7 @@ func ReadConnections() []list.Item {
 		f, err := os.ReadFile(file)
 		if err != nil {
 			if os.IsExist(err) {
-				fmt.Println(err)
+				log.Logger.Error("Error reading config file", "file", file, "err", err)
 			}
 			continue
 		}
@@ -81,7 +81,7 @@ func ReadConnections() []list.Item {
 		if err != nil {
 			debug := os.Getenv("GOSSH_DEBUG")
 			if debug != "" {
-				fmt.Println(err)
+				log.Logger.Debug("Error unmarshalling config", "file", file, "err", err)
 			}
 		}
 	}

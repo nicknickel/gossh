@@ -13,6 +13,7 @@ import (
 	"github.com/nicknickel/gossh/internal/config"
 	"github.com/nicknickel/gossh/internal/connection"
 	"github.com/nicknickel/gossh/internal/encryption"
+	"github.com/nicknickel/gossh/internal/log"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
@@ -50,7 +51,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, LogConn(msg)
 	case programCloseMsg:
 		if msg.err != nil {
-			fmt.Printf("logging connection exited with error: %v\n", msg.err)
+			log.Logger.Error("logging connection exited with error", "err", msg.err)
 		}
 		return m, tea.Quit
 	}
@@ -89,7 +90,10 @@ func HandleTmux(name string) error {
 func LogConn(msg sshFinishedMsg) tea.Cmd {
 	errorMsg := ""
 	if msg.err != nil {
+		log.Logger.Error("ssh exited with error", "err", msg.err)
 		errorMsg = fmt.Sprintf("ssh exited with error: %v\n", msg.err)
+	} else {
+		log.Logger.Info("ssh connection finished", "cmd", msg.msg)
 	}
 
 	c := exec.Command("echo", msg.msg, "\n", errorMsg)
@@ -116,7 +120,7 @@ func runConnection(i connection.Item) tea.Cmd {
 
 	sshPassPath, err := exec.LookPath("sshpass")
 	if err != nil {
-		fmt.Printf("sshpass not found")
+		log.Logger.Warn("sshpass not found")
 	}
 
 	// determine correct program to run
@@ -172,6 +176,7 @@ func FilterFunc(t string, items []string) []list.Rank {
 }
 
 func main() {
+	log.Init()
 
 	items := config.ReadConnections()
 	l := list.NewDefaultDelegate()
@@ -191,7 +196,7 @@ func main() {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
-		fmt.Println("Error running program:", err)
+		log.Logger.Error("Error running program", "err", err)
 		os.Exit(1)
 	}
 
