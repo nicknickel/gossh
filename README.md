@@ -38,7 +38,7 @@ Several environment variables are also supported:
 - [ ] Multiple tmux panes for multiple connections
 - [x] Encrypted password files using an ssh key
 - [x] Improve and unify logging
-- [ ] Increase test coverage
+- [x] Increase test coverage
 
 ## Logging
 
