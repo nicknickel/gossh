@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/nicknickel/gossh/internal/connection"
@@ -44,14 +45,41 @@ func TestConfigFiles(t *testing.T) {
 		home + "/nccm.yml",
 	}
 
+	for _, f := range expected {
+		_, err := os.ReadFile(f)
+		if err != nil {
+			if os.IsNotExist(err) {
+				err := os.WriteFile(f, []byte(""), 0666)
+				if err != nil {
+					t.Errorf("Could not prepare %v for test", f)
+				}
+			}
+		}
+	}
 	got := ConfigFiles()
+
 	// Since /etc/nccm.d/ may or may not exist, we check prefix
-	if len(got) < len(expected) {
-		t.Errorf("ConfigFiles() = %v, want at least %v", got, expected)
+	filteredFiles := []string{}
+	for _, e := range got {
+		if !strings.Contains(e, "/etc/nccm.d") {
+			filteredFiles = append(filteredFiles, e)
+		}
+	}
+
+	if len(filteredFiles) < len(expected) {
+		t.Errorf("ConfigFiles() = %v, want at least %v", filteredFiles, expected)
 	}
 	for i, e := range expected {
-		if got[i] != e {
-			t.Errorf("ConfigFiles()[%d] = %v, want %v", i, got[i], e)
+		if filteredFiles[i] != e {
+			t.Errorf("ConfigFiles()[%d] = %v, want %v", i, filteredFiles[i], e)
+		}
+	}
+
+	// cleanup blank files
+	for _, f := range expected {
+		data, _ := os.ReadFile(f)
+		if string(data) == "" {
+			os.Remove(f)
 		}
 	}
 }

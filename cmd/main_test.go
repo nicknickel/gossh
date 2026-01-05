@@ -27,13 +27,26 @@ func TestHandleTmux(t *testing.T) {
 			envGOSSH:   "",
 			expectErr:  false,
 		},
-		{
-			name:       "with tmux and GOSSH_TMUX",
-			windowName: "test",
-			envTMUX:    "/tmp/tmux",
-			envGOSSH:   "1",
-			expectErr:  false, // Assuming tmux command succeeds
-		},
+	}
+
+	tmuxIsInstalledTest := struct {
+		name       string
+		windowName string
+		envTMUX    string
+		envGOSSH   string
+		expectErr  bool
+	}{
+		name:       "with tmux and GOSSH_TMUX",
+		windowName: "test",
+		envTMUX:    "/tmp/tmux",
+		envGOSSH:   "1",
+		expectErr:  false, // Assuming tmux command succeeds
+	}
+
+	// Can only test tmux if tmux is currently running
+	isTmux := os.Getenv("TMUX")
+	if isTmux != "" {
+		tests = append(tests, tmuxIsInstalledTest)
 	}
 
 	for _, tt := range tests {
@@ -51,6 +64,9 @@ func TestHandleTmux(t *testing.T) {
 			}
 		})
 	}
+
+	// cleanup tmux window
+	HandleTmux("")
 }
 
 func TestFilterFunc(t *testing.T) {

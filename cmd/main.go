@@ -80,6 +80,7 @@ func HandleTmux(name string) error {
 	if tmuxType != "" && isTmux != "" {
 		err := c.Run()
 		if err != nil {
+			// log.Logger.Errorf("could not rename tmux window: %e", err)
 			return fmt.Errorf("could not rename tmux window: %e", err)
 		}
 	}

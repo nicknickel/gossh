@@ -49,4 +49,4 @@ The log file will rollover to `~/.gossh.log.old` once it reaches the size specif
 
 ## Testing
 
-You can run the tests with `go test ./... -v`
+You can run the tests with `go test ./...` (optionally add `-v`)

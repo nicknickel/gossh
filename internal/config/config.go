@@ -17,7 +17,7 @@ func ConfigFiles() []string {
 	}
 	userHome, err := os.UserHomeDir()
 
-	if err != nil {
+	if err == nil {
 		loc = append(loc, userHome+"/.config/nccm/nccm.yml")
 		loc = append(loc, userHome+"/.nccm.yml")
 		loc = append(loc, userHome+"/nccm.yml")
