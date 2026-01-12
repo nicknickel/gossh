@@ -10,8 +10,9 @@ type Connection struct {
 }
 
 type Item struct {
-	Name string
-	Conn Connection
+	Name    string
+	Conn    Connection
+	Checked bool
 }
 
 func (i Item) FinalAddr() string {

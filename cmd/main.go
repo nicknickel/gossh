@@ -26,7 +26,8 @@ type sshFinishedMsg struct {
 type programCloseMsg struct{ err error }
 
 type model struct {
-	list list.Model
+	list         list.Model
+	checkedCount int
 }
 
 func (m model) Init() tea.Cmd {
@@ -40,9 +41,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if msg.String() == "enter" && m.list.FilterState() != list.Filtering {
-			// get the selected item and assert type to item
+			c := []connection.Item{}
+			// If items are checked, ignore selected item
+			if m.checkedCount > 0 {
+				for _, listItem := range m.list.Items() {
+					if listItem.(connection.Item).Checked {
+						c = append(c, listItem.(connection.Item))
+					}
+				}
+			} else {
+				// get the selected item and assert type to item
+				c = append(c, m.list.SelectedItem().(connection.Item))
+			}
+			return m, runConnections(c)
+		}
+		if msg.String() == " " && m.list.FilterState() != list.Filtering {
 			i := m.list.SelectedItem().(connection.Item)
-			return m, runConnection(i)
+			if i.Checked {
+				i.Checked = false
+				i.Name = strings.Replace(i.Name, "[✓] ", "", 1)
+				m.checkedCount--
+			} else {
+				i.Checked = true
+				i.Name = fmt.Sprintf("[✓] %v", i.Name)
+				m.checkedCount++
+			}
+			m.list.SetItem(m.list.GlobalIndex(), i)
+			return m, nil
 		}
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
@@ -103,6 +128,11 @@ func LogConn(msg sshFinishedMsg) tea.Cmd {
 		return programCloseMsg{err: err}
 	})
 	return cmd
+}
+
+func runConnections(c []connection.Item) tea.Cmd {
+	t := runConnection(c[0])
+	return t
 }
 
 func runConnection(i connection.Item) tea.Cmd {
@@ -188,7 +218,7 @@ func main() {
 		Foreground(lipgloss.Color("#06bf18")).
 		BorderForeground(lipgloss.Color("#06bf18"))
 
-	m := model{list: list.New(items, l, 0, 0)}
+	m := model{list: list.New(items, l, 0, 0), checkedCount: 0}
 	m.list.Title = "Go SSH Connection Manager"
 	m.list.Styles.Title = lipgloss.NewStyle().Background(lipgloss.Color("#045edb")).Padding(0, 1)
 	m.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
