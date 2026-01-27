@@ -30,7 +30,7 @@ The following keys are supported for a given connection:
 
 
 Several environment variables are also supported:
-* `GOSSH_TMUX`: (string) When not empty will attempt to set the tmux window name
+* `GOSSH_TMUX`: (string) When set to "true" will attempt to set the tmux window name
 * `GOSSH_PASSPHRASE`: (string) Uses contents as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
 * `GOSSH_LOG_ROLLOVER`: (integer) Sets the maximum size in bytes for the log file before rollover. Defaults to 1048576 (1MB) if not set.
 

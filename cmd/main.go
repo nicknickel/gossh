@@ -10,10 +10,12 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	tmux "github.com/jubnzv/go-tmux"
 	"github.com/nicknickel/gossh/internal/config"
 	"github.com/nicknickel/gossh/internal/connection"
 	"github.com/nicknickel/gossh/internal/encryption"
 	"github.com/nicknickel/gossh/internal/log"
+	"github.com/riywo/loginshell"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
@@ -41,19 +43,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if msg.String() == "enter" && m.list.FilterState() != list.Filtering {
-			c := []connection.Item{}
-			// If items are checked, ignore selected item
-			if m.checkedCount > 0 {
-				for _, listItem := range m.list.Items() {
-					if listItem.(connection.Item).Checked {
-						c = append(c, listItem.(connection.Item))
-					}
-				}
-			} else {
-				// get the selected item and assert type to item
-				c = append(c, m.list.SelectedItem().(connection.Item))
-			}
-			return m, runConnections(c)
+			return m, tea.Quit
+			// c := []connection.Item{}
+			// // If items are checked, ignore selected item
+			// if m.checkedCount > 0 {
+			// 	for _, listItem := range m.list.Items() {
+			// 		if listItem.(connection.Item).Checked {
+			// 			c = append(c, listItem.(connection.Item))
+			// 		}
+			// 	}
+			// } else {
+			// 	// get the selected item and assert type to item
+			// 	c = append(c, m.list.SelectedItem().(connection.Item))
+			// }
+			// return m, runConnections(c)
 		}
 		if msg.String() == " " && m.list.FilterState() != list.Filtering {
 			i := m.list.SelectedItem().(connection.Item)
@@ -90,29 +93,6 @@ func (m model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
-func HandleTmux(name string) error {
-	var c *exec.Cmd
-
-	if name != "" {
-		c = exec.Command("tmux", "-2u", "rename-window", name)
-	} else {
-		c = exec.Command("tmux", "-2u", "set-window-option", "automatic-rename", "on")
-	}
-
-	// adjust tmux settings, if indicated
-	tmuxType := os.Getenv("GOSSH_TMUX")
-	isTmux := os.Getenv("TMUX")
-	if tmuxType != "" && isTmux != "" {
-		err := c.Run()
-		if err != nil {
-			// log.Logger.Errorf("could not rename tmux window: %e", err)
-			return fmt.Errorf("could not rename tmux window: %e", err)
-		}
-	}
-
-	return nil
-}
-
 func LogConn(msg sshFinishedMsg) tea.Cmd {
 	errorMsg := ""
 	if msg.err != nil {
@@ -128,53 +108,6 @@ func LogConn(msg sshFinishedMsg) tea.Cmd {
 		return programCloseMsg{err: err}
 	})
 	return cmd
-}
-
-func runConnections(c []connection.Item) tea.Cmd {
-	t := runConnection(c[0])
-	return t
-}
-
-func runConnection(i connection.Item) tea.Cmd {
-
-	var connCmd *exec.Cmd
-	windowName := i.Name
-
-	if i.Name != i.Conn.Address {
-		windowName = windowName + " (" + i.Conn.Address + ")"
-	}
-	if i.Conn.User != "" {
-		windowName = i.Conn.User + "@" + windowName
-	}
-
-	HandleTmux(windowName)
-
-	sshPassPath, err := exec.LookPath("sshpass")
-	if err != nil {
-		log.Logger.Warn("sshpass not found")
-	}
-
-	// determine correct program to run
-	if i.Conn.PassFile != "" && sshPassPath != "" {
-		pw := encryption.GetEncryptedPassword(i.Conn.PassFile)
-		if pw == "" {
-			connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
-		} else {
-			connCmd = exec.Command("sshpass", "-e", "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
-			connCmd.Env = append(connCmd.Environ(), "SSHPASS="+pw)
-		}
-	} else if i.Conn.IdentityFile != "" {
-		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
-	} else {
-		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
-	}
-
-	cmd := tea.ExecProcess(connCmd, func(err error) tea.Msg {
-		HandleTmux("")
-		return sshFinishedMsg{err: err, msg: strings.Join(connCmd.Args, " ")}
-	})
-	return cmd
-
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -206,6 +139,109 @@ func FilterFunc(t string, items []string) []list.Rank {
 	return results
 }
 
+func GetCommand(i connection.Item, sshPass bool) *exec.Cmd {
+	var connCmd *exec.Cmd
+
+	// determine correct program to run
+	if i.Conn.PassFile != "" && sshPass {
+		pw := encryption.GetEncryptedPassword(i.Conn.PassFile)
+		if pw == "" {
+			connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+		} else {
+			// connCmd = exec.Command("sshpass", "-e", "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+			connCmd = exec.Command("export", "SSHPASS="+pw, "sshpass", "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+			// connCmd.Env = append(connCmd.Environ(), "SSHPASS="+pw)
+		}
+	} else if i.Conn.IdentityFile != "" {
+		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
+	} else {
+		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
+	}
+
+	return connCmd
+}
+
+func HandleTmux(name string) error {
+	var c *exec.Cmd
+
+	if name != "" {
+		c = exec.Command("tmux", "-2u", "rename-window", name)
+	} else {
+		c = exec.Command("tmux", "-2u", "set-window-option", "automatic-rename", "on")
+	}
+
+	// adjust tmux settings, if indicated
+	tmuxType := os.Getenv("GOSSH_TMUX")
+	if strings.ToLower(tmuxType) == "true" && tmux.IsInsideTmux() {
+		err := c.Run()
+		if err != nil {
+			// log.Logger.Errorf("could not rename tmux window: %e", err)
+			return fmt.Errorf("could not rename tmux window: %e", err)
+		}
+	}
+
+	return nil
+}
+
+// func runConnection(c []connection.Item) tea.Cmd {
+// 	t := runConnection(c[0])
+// 	return t
+// }
+
+func GetPanes() ([]string, error) {
+	listPanes := exec.Command("tmux", "list-panes", "-F", "#{pane_id}")
+	panes, err := listPanes.Output()
+	if err != nil {
+		fmt.Println("unable to get tmux panes")
+		return nil, err
+	}
+	p := strings.Split(string(panes), "\n")
+	return p, nil
+}
+func runConnections(c []connection.Item) error {
+	tmuxType := os.Getenv("GOSSH_TMUX")
+	sshPass := false
+	_, err := exec.LookPath("sshpass")
+	if err == nil {
+		sshPass = true
+	}
+	if strings.ToLower(tmuxType) == "true" && tmux.IsInsideTmux() {
+		// p, _ := GetPanes()
+		// if len(c) > len(p) {
+		// 	diff := len(c) - len(p)
+		// 	for range diff {
+		// 		newPaneCmd := exec.Command("tmux", "split-window", "-d", strings.Join(sshCmd.Args, " "))
+		// 		newPaneCmd.Run()
+		// 	}
+		// }
+
+		// tileCmd := exec.Command("tmux", "select-layout", "tiled")
+		// tileCmd.Run()
+
+		// p, _ = GetPanes()
+		// fmt.Println(len(p))
+
+		for _, conn := range c {
+			sshCmd := GetCommand(conn, sshPass)
+			shell, err := loginshell.Shell()
+			if err != nil {
+				shell = "/bin/bash"
+			}
+			newPaneCmd := exec.Command("tmux", "split-window", "-d", "\"", strings.Join(sshCmd.Args, " "), ";", shell, "\"")
+			fmt.Println(newPaneCmd.Args)
+			newPaneCmd.Run()
+			// cmd := exec.Command("tmux", "send-keys", "-t", fmt.Sprintf("%v", p[i]), strings.Join(sshCmd.Args, " "), "C-m")
+			// stdout, _ := cmd.StdoutPipe()
+			// cmd.Start()
+
+		}
+		tileCmd := exec.Command("tmux", "select-layout", "tiled")
+		tileCmd.Run()
+	}
+
+	return nil
+}
+
 func main() {
 	log.Init()
 
@@ -226,9 +262,28 @@ func main() {
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
-	if _, err := p.Run(); err != nil {
-		log.Logger.Error("Error running program", "err", err)
+	fm, err := p.Run()
+	if err != nil {
+		log.Logger.Error("Error running program: ", err)
 		os.Exit(1)
 	}
 
+	lm := fm.(model)
+	c := []connection.Item{}
+	// If items are checked, ignore selected item
+	if lm.checkedCount > 0 {
+		for _, listItem := range lm.list.Items() {
+			if listItem.(connection.Item).Checked {
+				c = append(c, listItem.(connection.Item))
+			}
+		}
+	} else {
+		// get the selected item and assert type to item
+		c = append(c, lm.list.SelectedItem().(connection.Item))
+	}
+
+	err = runConnections(c)
+	if err != nil {
+		fmt.Println("log something here")
+	}
 }
