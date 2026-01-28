@@ -1,10 +1,6 @@
-sdf.org:
-  user: zachnickel
-  comment: public endpoint
-  passfile: /workspaces/gossh/pass_encrypted
 server:
   address: 0.1.2.3
-  comment: dh secondary
+  comment: My server compute
 My server:
   address: 1.2.3.4
   user: root
@@ -13,11 +9,14 @@ aaaaaaa:
   address: 2.3.4.5
   user: opc
   comment: bbbbbbb
+  passfile: /tmp/plaintext_password
 aaaaaaa-1:
   address: 2.3.4.5
   user: opc
   comment: bbbbbbb
+  identity: /tmp/key.pem
 aaaaaaa-2:
   address: 2.3.4.6
   user: opc
   comment: ccccccc
+  passfile: /tmp/encrypted_password

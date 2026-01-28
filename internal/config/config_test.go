@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/nicknickel/gossh/internal/connection"
@@ -39,10 +38,14 @@ func TestConfigFiles(t *testing.T) {
 
 	expected := []string{
 		"./gossh.yml",
-		"./nccm.yml",
-		home + "/.config/nccm/nccm.yml",
-		home + "/.nccm.yml",
-		home + "/nccm.yml",
+		home + "/.config/gossh/gossh.yml",
+		home + "/.gossh.yml",
+		home + "/gossh.yml",
+	}
+
+	err = os.MkdirAll(home+"/.config/gossh", 0666)
+	if err != nil {
+		t.Errorf("Could not prepare %v for test", home+"/.config/gossh")
 	}
 
 	for _, f := range expected {
@@ -58,20 +61,12 @@ func TestConfigFiles(t *testing.T) {
 	}
 	got := ConfigFiles()
 
-	// Since /etc/nccm.d/ may or may not exist, we check prefix
-	filteredFiles := []string{}
-	for _, e := range got {
-		if !strings.Contains(e, "/etc/nccm.d") {
-			filteredFiles = append(filteredFiles, e)
-		}
-	}
-
-	if len(filteredFiles) < len(expected) {
-		t.Errorf("ConfigFiles() = %v, want at least %v", filteredFiles, expected)
+	if len(got) < len(expected) {
+		t.Errorf("ConfigFiles() = %v, want at least %v", got, expected)
 	}
 	for i, e := range expected {
-		if filteredFiles[i] != e {
-			t.Errorf("ConfigFiles()[%d] = %v, want %v", i, filteredFiles[i], e)
+		if got[i] != e {
+			t.Errorf("ConfigFiles()[%d] = %v, want %v", i, got[i], e)
 		}
 	}
 
@@ -81,6 +76,11 @@ func TestConfigFiles(t *testing.T) {
 		if string(data) == "" {
 			os.Remove(f)
 		}
+	}
+
+	files, err := os.ReadDir(home + "/.config/gossh")
+	if err == nil && len(files) == 0 {
+		os.Remove(home + "/.config/gossh")
 	}
 }
 

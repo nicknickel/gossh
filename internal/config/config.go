@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -12,28 +13,29 @@ import (
 )
 
 func ConfigFiles() []string {
-	loc := []string{"./gossh.yml",
-		"./nccm.yml",
-	}
+	loc := []string{"./gossh.yml"}
 	userHome, err := os.UserHomeDir()
 
 	if err == nil {
-		loc = append(loc, userHome+"/.config/nccm/nccm.yml")
-		loc = append(loc, userHome+"/.nccm.yml")
-		loc = append(loc, userHome+"/nccm.yml")
+		loc = append(loc, userHome+"/.config/gossh/gossh.yml")
+		loc = append(loc, userHome+"/.gossh.yml")
+		loc = append(loc, userHome+"/gossh.yml")
 	}
 
-	configDir := "/etc/nccm.d/"
+	configDir := os.Getenv("GOSSH_CONFIGDIR")
+	if configDir == "" {
+		return loc
+	}
+
 	files, err := os.ReadDir(configDir)
 	if err != nil {
 		if os.IsExist(err) {
 			log.Logger.Error("Cannot read config directory", "dir", configDir, "err", err)
 		}
-		return loc
-	}
-
-	for _, file := range files {
-		loc = append(loc, configDir+file.Name())
+	} else {
+		for _, file := range files {
+			loc = append(loc, fmt.Sprintf("%v/%v", configDir, file.Name()))
+		}
 	}
 
 	return loc
