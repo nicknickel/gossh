@@ -99,3 +99,40 @@ func TestItem_Description(t *testing.T) {
 		})
 	}
 }
+
+func TestItem_WindowName(t *testing.T) {
+	tests := []struct {
+		name     string
+		item     Item
+		expected string
+	}{
+		{
+			name:     "with name no address or user",
+			item:     Item{Name: "host", Conn: Connection{}},
+			expected: "host",
+		},
+		{
+			name:     "with name and address no user",
+			item:     Item{Name: "host", Conn: Connection{Address: "addr"}},
+			expected: "host (addr)",
+		},
+		{
+			name:     "with name and user no address",
+			item:     Item{Name: "host", Conn: Connection{User: "user"}},
+			expected: "user@host",
+		},
+		{
+			name:     "with name and address and user",
+			item:     Item{Name: "host", Conn: Connection{User: "user", Address: "addr"}},
+			expected: "user@host (addr)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.item.WindowName(); got != tt.expected {
+				t.Errorf("WindowName() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}

@@ -40,3 +40,16 @@ func (i Item) Title() string {
 func (i Item) Description() string {
 	return i.FinalAddr() + " -> " + i.Conn.Description
 }
+
+func (i Item) WindowName() string {
+	windowName := i.Name
+
+	if i.Conn.Address != "" && i.Name != i.Conn.Address {
+		windowName = windowName + " (" + i.Conn.Address + ")"
+	}
+	if i.Conn.User != "" {
+		windowName = i.Conn.User + "@" + windowName
+	}
+
+	return windowName
+}

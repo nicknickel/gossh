@@ -49,7 +49,7 @@ Several environment variables are also supported:
 - [x] Improve and unify logging
 - [x] Increase test coverage
 - [x] Relative paths for identity and passfile
-- [ ] Refactor to simplify command execution
+- [x] Refactor to simplify command execution
 - [ ] SSH keys from OCI Vault?
 
 ## Logging
