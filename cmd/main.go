@@ -18,13 +18,6 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-type sshFinishedMsg struct {
-	err error
-	msg string
-}
-
-type programCloseMsg struct{ err error }
-
 type model struct {
 	list list.Model
 }
@@ -40,20 +33,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if msg.String() == "enter" && m.list.FilterState() != list.Filtering {
-			// get the selected item and assert type to item
-			i := m.list.SelectedItem().(connection.Item)
-			return m, runConnection(i)
+			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
-	case sshFinishedMsg:
-		return m, LogConn(msg)
-	case programCloseMsg:
-		if msg.err != nil {
-			log.Logger.Error("logging connection exited with error", "err", msg.err)
-		}
-		return m, tea.Quit
 	}
 
 	var cmd tea.Cmd
@@ -80,44 +64,16 @@ func HandleTmux(name string) error {
 	if tmuxType != "" && isTmux != "" {
 		err := c.Run()
 		if err != nil {
-			// log.Logger.Errorf("could not rename tmux window: %e", err)
-			return fmt.Errorf("could not rename tmux window: %e", err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func LogConn(msg sshFinishedMsg) tea.Cmd {
-	errorMsg := ""
-	if msg.err != nil {
-		log.Logger.Error("ssh exited with error", "err", msg.err)
-		errorMsg = fmt.Sprintf("ssh exited with error: %v\n", msg.err)
-	} else {
-		log.Logger.Info("ssh connection finished", "cmd", msg.msg)
-	}
-
-	c := exec.Command("echo", msg.msg, "\n", errorMsg)
-
-	cmd := tea.ExecProcess(c, func(err error) tea.Msg {
-		return programCloseMsg{err: err}
-	})
-	return cmd
-}
-
-func runConnection(i connection.Item) tea.Cmd {
+func RunConnection(i connection.Item) {
 
 	var connCmd *exec.Cmd
-	windowName := i.Name
-
-	if i.Name != i.Conn.Address {
-		windowName = windowName + " (" + i.Conn.Address + ")"
-	}
-	if i.Conn.User != "" {
-		windowName = i.Conn.User + "@" + windowName
-	}
-
-	HandleTmux(windowName)
 
 	sshPassPath, err := exec.LookPath("sshpass")
 	if err != nil {
@@ -139,12 +95,11 @@ func runConnection(i connection.Item) tea.Cmd {
 		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
 	}
 
-	cmd := tea.ExecProcess(connCmd, func(err error) tea.Msg {
-		HandleTmux("")
-		return sshFinishedMsg{err: err, msg: strings.Join(connCmd.Args, " ")}
-	})
-	return cmd
-
+	connCmd.Stdin = os.Stdin
+	connCmd.Stdout = os.Stdout
+	connCmd.Stderr = os.Stderr
+	connCmd.Run()
+	fmt.Printf("\n%v\n\n", strings.Join(connCmd.Args, " "))
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -196,9 +151,22 @@ func main() {
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
-	if _, err := p.Run(); err != nil {
-		log.Logger.Error("Error running program", "err", err)
+	fm, err := p.Run()
+	if err != nil {
+		log.Logger.Error("Error running program: ", err)
 		os.Exit(1)
 	}
 
+	lm := fm.(model)
+	c := lm.list.SelectedItem().(connection.Item)
+
+	if err := HandleTmux(c.WindowName()); err != nil {
+		fmt.Printf("\nCould not rename tmux window: %v\n", err)
+	}
+
+	RunConnection(c)
+
+	if err := HandleTmux(""); err != nil {
+		fmt.Printf("\nCould not reset tmux window: %v\n", err)
+	}
 }
