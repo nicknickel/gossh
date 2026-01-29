@@ -2,7 +2,15 @@
 
 A command line ssh connection and authentication manager. I wanted to learn go so chose a problem to solve. Inspired by nccm (NCurses Connection Manager).
 
-You first need a yaml file with the connection settings for your connections. Possible locations include:
+## Installation
+1. Download latest release from Github releases and extract the executable into your path
+2. Create connections files (or copy from somewhere like git)
+3. Set `GOSSH_*` environment variables as desired
+3. Enjoy!
+
+### Connections Files
+
+You need a yaml file with the connection settings for your connections. Possible locations include:
 *  `./gossh.yml`
 * All yaml files at the path to which the `GOSSH_CONFIGDIR` environment variable points.
 * The below files in the user home directory:
@@ -24,10 +32,12 @@ The following keys are supported for a given connection:
 * `address`: The network address of the ssh connection. If not set, uses the connection name as the address.
 * `user`: The user to connect as. If not set, leaves blank which defaults to current user.
 * `comment`: Free text field to help indicate the connection. Helpful for filtering.
-* `passfile`: Full path to the `age` encrypted file that contains the password for the ssh connection.
-* `identity`: Full path to the private key file to use for the ssh connection.
+* `passfile`: Path (full or relative) to the `age` encrypted file that contains the password for the ssh connection.
+* `identity`: Path (full or relative) to the private key file to use for the ssh connection.
 
 > Note: Gossh checks for and uses a passfile parameter first, then an identity file. If you have both parameters, the passfile will be used (assuming sshpass is installed and in the PATH).
+
+### Environment Variables
 
 Several environment variables are also supported:
 * `GOSSH_TMUX`: (string) When not empty will attempt to set the tmux window name
@@ -38,6 +48,7 @@ Several environment variables are also supported:
 - [x] Encrypted password files using `age`
 - [x] Improve and unify logging
 - [x] Increase test coverage
+- [x] Relative paths for identity and passfile
 - [ ] Refactor to simplify command execution
 - [ ] SSH keys from OCI Vault?
 
