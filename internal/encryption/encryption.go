@@ -2,8 +2,10 @@ package encryption
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"filippo.io/age"
 	"github.com/nicknickel/gossh/internal/log"
@@ -20,7 +22,7 @@ func GetPassphrase() string {
 	return passphrase
 }
 
-func GetEncryptedPassword(encFile string) string {
+func GetEncryptedContents(encFile string) string {
 	p := GetPassphrase()
 	if p == "" {
 		return ""
@@ -50,4 +52,22 @@ func GetEncryptedPassword(encFile string) string {
 	}
 
 	return out.String()
+}
+
+func GetEncryptedIdentity(encFile string) string {
+	identityContents := GetEncryptedContents(encFile)
+	if identityContents != "" {
+		pattern := fmt.Sprintf("%v.pem.*", filepath.Base(encFile))
+		f, err := os.CreateTemp("", pattern)
+		if err != nil {
+			log.Logger.Error("Failed to create temp identity file", "file", encFile, "err", err)
+			return ""
+		}
+
+		defer f.Close()
+
+		_, err = f.Write([]byte(identityContents))
+		return f.Name()
+	}
+	return ""
 }
