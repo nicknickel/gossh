@@ -33,9 +33,11 @@ The following keys are supported for a given connection:
 * `user`: The user to connect as. If not set, leaves blank which defaults to current user.
 * `comment`: Free text field to help indicate the connection. Helpful for filtering.
 * `passfile`: Path (full or relative) to the `age` encrypted file that contains the password for the ssh connection.
-* `identity`: Path (full or relative) to the private key file to use for the ssh connection.
+* `identity`: Path (full or relative) to the `age` encrypted file that contains the private key data for the ssh connection.
 
-> Note: Gossh checks for and uses a passfile parameter first, then an identity file. If you have both parameters, the passfile will be used (assuming sshpass is installed and in the PATH).
+Notes
+* Gossh checks for and uses a passfile parameter first, then an identity file. If you have both parameters, the passfile will be used (assuming sshpass is installed and in the PATH).
+* Passing `-o` to the command will simply output the decrypted authentication mechanism. If it's a password, the password will be output to stdout. If it's an identity file, the file will be decrypted to a temp file and the path to the temp file will be output to stdout. Be sure to remove the tempfile when you are done.
 
 ### Environment Variables
 
@@ -50,7 +52,7 @@ Several environment variables are also supported:
 - [x] Increase test coverage
 - [x] Relative paths for identity and passfile
 - [x] Refactor to simplify command execution
-- [ ] SSH keys from OCI Vault?
+- [ ] SSH keys/passwords from Vault API?
 
 ## Logging
 

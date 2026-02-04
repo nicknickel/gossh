@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -71,7 +72,7 @@ func HandleTmux(name string) error {
 	return nil
 }
 
-func RunConnection(i connection.Item) {
+func RunConnection(i connection.Item) string {
 
 	var connCmd *exec.Cmd
 
@@ -82,7 +83,7 @@ func RunConnection(i connection.Item) {
 
 	// determine correct program to run
 	if i.Conn.PassFile != "" && sshPassPath != "" {
-		pw := encryption.GetEncryptedPassword(i.Conn.PassFile)
+		pw := encryption.GetEncryptedContents(i.Conn.PassFile)
 		if pw == "" {
 			connCmd = exec.Command("sshpass", "-f", i.Conn.PassFile, "ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
 		} else {
@@ -90,7 +91,13 @@ func RunConnection(i connection.Item) {
 			connCmd.Env = append(connCmd.Environ(), "SSHPASS="+pw)
 		}
 	} else if i.Conn.IdentityFile != "" {
-		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
+		tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
+		if tempIdFile != "" {
+			connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", tempIdFile, i.FinalAddr())
+			defer os.Remove(tempIdFile)
+		} else {
+			connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", "-i", i.Conn.IdentityFile, i.FinalAddr())
+		}
 	} else {
 		connCmd = exec.Command("ssh", "-o", "ServerAliveInterval=30", i.FinalAddr())
 	}
@@ -99,7 +106,7 @@ func RunConnection(i connection.Item) {
 	connCmd.Stdout = os.Stdout
 	connCmd.Stderr = os.Stderr
 	connCmd.Run()
-	fmt.Printf("\n%v\n\n", strings.Join(connCmd.Args, " "))
+	return fmt.Sprintf("\n%v\n", strings.Join(connCmd.Args, " "))
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -131,6 +138,27 @@ func FilterFunc(t string, items []string) []list.Rank {
 	return results
 }
 
+func OutputAuthentication(i connection.Item) string {
+	var output string
+	if i.Conn.PassFile != "" {
+		pw := encryption.GetEncryptedContents(i.Conn.PassFile)
+		if pw == "" {
+			output = i.Conn.PassFile
+		} else {
+			output = pw
+		}
+	} else if i.Conn.IdentityFile != "" {
+		tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
+		if tempIdFile != "" {
+			output = tempIdFile
+		} else {
+			output = i.Conn.IdentityFile
+		}
+	}
+
+	return output
+}
+
 func main() {
 	log.Init()
 
@@ -160,13 +188,24 @@ func main() {
 	lm := fm.(model)
 	c := lm.list.SelectedItem().(connection.Item)
 
-	if err := HandleTmux(c.WindowName()); err != nil {
-		fmt.Printf("\nCould not rename tmux window: %v\n", err)
+	outputAuth := flag.Bool("o", false, "Decrypt and output authentication for selected connection")
+	flag.Parse()
+
+	var output string
+	if *outputAuth {
+		output = OutputAuthentication(c)
+	} else {
+		if err := HandleTmux(c.WindowName()); err != nil {
+			fmt.Printf("\nCould not rename tmux window: %v\n", err)
+		}
+
+		output = RunConnection(c)
+
+		if err := HandleTmux(""); err != nil {
+			fmt.Printf("\nCould not reset tmux window: %v\n", err)
+		}
 	}
 
-	RunConnection(c)
+	fmt.Println(output)
 
-	if err := HandleTmux(""); err != nil {
-		fmt.Printf("\nCould not reset tmux window: %v\n", err)
-	}
 }
