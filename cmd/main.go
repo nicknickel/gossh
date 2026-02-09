@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -20,12 +20,58 @@ import (
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type model struct {
-	list list.Model
+	list         list.Model
+	checkedCount int
+	action       string
+}
+
+type customKeyMap struct {
+	Choose    key.Binding
+	Select    key.Binding
+	SelectAll key.Binding
+	ShowAuth  key.Binding
+}
+
+func (c *customKeyMap) AdditionalKeys() []key.Binding {
+	return []key.Binding{c.Choose, c.Select, c.SelectAll, c.ShowAuth}
+}
+
+var customKeyBindings = customKeyMap{
+	Choose: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "choose"),
+	),
+	Select: key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("<space>", "select"),
+	),
+	SelectAll: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "select-all"),
+	),
+	ShowAuth: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "show-auth"),
+	),
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
 }
+
+// func ToggleAll (m model, v bool) () {
+// 	if !connItem.Checked && checkAll {
+// 		connItem.Checked = true
+// 		connItem.Name = fmt.Sprintf("[✓] %v", connItem.Name)
+// 		m.list.SetItem(ind, connItem)
+// 		m.checkedCount++
+// 	} else if connItem.Checked && !checkAll {
+// 		connItem.Checked = false
+// 		connItem.Name = strings.Replace(connItem.Name, "[✓] ", "", 1)
+// 		m.list.SetItem(ind, connItem)
+// 		m.checkedCount--
+// 	}
+// }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -33,8 +79,59 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		if msg.String() == "enter" && m.list.FilterState() != list.Filtering {
+		if key.Matches(msg, customKeyBindings.ShowAuth) && m.list.FilterState() != list.Filtering {
+			m.action = "ShowAuth"
+			if m.checkedCount == 0 {
+				i := m.list.SelectedItem().(connection.Item)
+				i.Checked = true
+				m.checkedCount++
+				m.list.SetItem(m.list.GlobalIndex(), i)
+			}
 			return m, tea.Quit
+		}
+		if key.Matches(msg, customKeyBindings.Choose) && m.list.FilterState() != list.Filtering {
+			m.action = "Connect"
+			if m.checkedCount == 0 {
+				i := m.list.SelectedItem().(connection.Item)
+				i.Checked = true
+				m.checkedCount++
+				m.list.SetItem(m.list.GlobalIndex(), i)
+			}
+			return m, tea.Quit
+		}
+		if key.Matches(msg, customKeyBindings.Select) && m.list.FilterState() != list.Filtering {
+			i := m.list.SelectedItem().(connection.Item)
+			if i.Checked {
+				i.Checked = false
+				m.checkedCount--
+			} else {
+				i.Checked = true
+				m.checkedCount++
+			}
+			m.list.SetItem(m.list.GlobalIndex(), i)
+			return m, nil
+		}
+		if key.Matches(msg, customKeyBindings.SelectAll) && m.list.FilterState() != list.Filtering {
+			// (un)select all; honor filter
+			var checkAll bool
+			if m.checkedCount == 0 {
+				checkAll = true
+			} else {
+				checkAll = false
+			}
+			for ind, val := range m.list.VisibleItems() {
+				connItem := val.(connection.Item)
+				if !connItem.Checked && checkAll {
+					connItem.Checked = true
+					m.list.SetItem(ind, connItem)
+					m.checkedCount++
+				} else if connItem.Checked && !checkAll {
+					connItem.Checked = false
+					connItem.Name = strings.Replace(connItem.Name, "[✓] ", "", 1)
+					m.list.SetItem(ind, connItem)
+					m.checkedCount--
+				}
+			}
 		}
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
@@ -159,6 +256,19 @@ func OutputAuthentication(i connection.Item) string {
 	return output
 }
 
+func GetCheckedItems(m model) []connection.Item {
+	var connItems []connection.Item
+	for _, val := range m.list.Items() {
+		connItem := val.(connection.Item)
+		if connItem.Checked {
+			fmt.Println(connItem)
+			connItems = append(connItems, connItem)
+		}
+	}
+
+	return connItems
+}
+
 func main() {
 	log.Init()
 
@@ -176,6 +286,8 @@ func main() {
 	m.list.Styles.Title = lipgloss.NewStyle().Background(lipgloss.Color("#045edb")).Padding(0, 1)
 	m.list.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
 	m.list.Filter = FilterFunc
+	m.list.AdditionalShortHelpKeys = customKeyBindings.AdditionalKeys
+	m.list.AdditionalFullHelpKeys = customKeyBindings.AdditionalKeys
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
@@ -186,24 +298,32 @@ func main() {
 	}
 
 	lm := fm.(model)
-	c := lm.list.SelectedItem().(connection.Item)
-
-	outputAuth := flag.Bool("o", false, "Decrypt and output authentication for selected connection")
-	flag.Parse()
-
 	var output string
-	if *outputAuth {
-		output = OutputAuthentication(c)
-	} else {
-		if err := HandleTmux(c.WindowName()); err != nil {
-			fmt.Printf("\nCould not rename tmux window: %v\n", err)
+	// c := lm.list.SelectedItem().(connection.Item)
+
+	if lm.checkedCount > 0 {
+		var connItems []connection.Item = GetCheckedItems(lm)
+
+		switch lm.action {
+		case "ShowAuth":
+			c := connItems[0]
+			output = OutputAuthentication(c)
+		case "Connect":
+			c := connItems[0]
+			fmt.Println(c)
+			if err := HandleTmux(c.WindowName()); err != nil {
+				fmt.Printf("\nCould not rename tmux window: %v\n", err)
+			}
+
+			output = RunConnection(c)
+
+			if err := HandleTmux(""); err != nil {
+				fmt.Printf("\nCould not reset tmux window: %v\n", err)
+			}
+		case "RunCommand":
+			output = "Run command here"
 		}
 
-		output = RunConnection(c)
-
-		if err := HandleTmux(""); err != nil {
-			fmt.Printf("\nCould not reset tmux window: %v\n", err)
-		}
 	}
 
 	fmt.Println(output)

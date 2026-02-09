@@ -70,7 +70,7 @@ func SortConns(c map[string]connection.Connection) []list.Item {
 	})
 
 	for _, key := range keys {
-		conns = append(conns, connection.Item{Name: key, Conn: c[key]})
+		conns = append(conns, connection.Item{Name: key, Conn: c[key], Checked: false})
 	}
 
 	return conns
