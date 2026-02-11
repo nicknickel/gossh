@@ -37,7 +37,6 @@ The following keys are supported for a given connection:
 
 Notes
 * Gossh checks for and uses a passfile parameter first, then an identity file. If you have both parameters, the passfile will be used (assuming sshpass is installed and in the PATH).
-* Passing `-o` to the command will simply output the decrypted authentication mechanism. If it's a password, the password will be output to stdout. If it's an identity file, the file will be decrypted to a temp file and the path to the temp file will be output to stdout. Be sure to remove the tempfile when you are done.
 
 ### Environment Variables
 
@@ -46,13 +45,11 @@ Several environment variables are also supported:
 * `GOSSH_PASSPHRASE`: (string) Uses contents as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
 * `GOSSH_LOG_ROLLOVER`: (integer) Sets the maximum size in bytes for the log file before rollover. Defaults to 1048576 (1MB) if not set.
 
-## Roadmap
-- [x] Encrypted password files using `age`
-- [x] Improve and unify logging
-- [x] Increase test coverage
-- [x] Relative paths for identity and passfile
-- [x] Refactor to simplify command execution
-- [ ] SSH keys/passwords from Vault API?
+## Features
+* Filtering list
+* Supports encrypted password files and private key files with `age`
+* Run command across multiple devices
+* Output encrypted authentication information
 
 ## Logging
 

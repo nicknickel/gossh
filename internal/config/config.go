@@ -69,8 +69,8 @@ func SortConns(c map[string]connection.Connection) []list.Item {
 		return strings.Compare(NormalizeString(a), NormalizeString(b))
 	})
 
-	for _, key := range keys {
-		conns = append(conns, connection.Item{Name: key, Conn: c[key], Checked: false})
+	for ind, key := range keys {
+		conns = append(conns, connection.Item{Name: key, Conn: c[key], Checked: false, Index: ind})
 	}
 
 	return conns

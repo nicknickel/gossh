@@ -15,6 +15,7 @@ type Item struct {
 	Name    string
 	Conn    Connection
 	Checked bool
+	Index   int
 }
 
 func (i Item) FinalAddr() string {
