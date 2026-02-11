@@ -1,5 +1,7 @@
 package connection
 
+import "strings"
+
 type Connection struct {
 	Address      string `yaml:"address,omitempty"`
 	User         string `yaml:"user,omitempty"`
@@ -10,8 +12,10 @@ type Connection struct {
 }
 
 type Item struct {
-	Name string
-	Conn Connection
+	Name    string
+	Conn    Connection
+	Checked bool
+	Index   int
 }
 
 func (i Item) FinalAddr() string {
@@ -34,6 +38,9 @@ func (i Item) FilterValue() string {
 }
 
 func (i Item) Title() string {
+	if i.Checked {
+		return "[x] " + i.Name
+	}
 	return i.Name
 }
 
@@ -42,7 +49,7 @@ func (i Item) Description() string {
 }
 
 func (i Item) WindowName() string {
-	windowName := i.Name
+	windowName := strings.Replace(i.Name, "[x] ", "", 1)
 
 	if i.Conn.Address != "" && i.Name != i.Conn.Address {
 		windowName = windowName + " (" + i.Conn.Address + ")"
