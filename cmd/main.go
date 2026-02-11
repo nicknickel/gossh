@@ -177,39 +177,7 @@ func HandleTmux(name string) error {
 	return nil
 }
 
-func RunConnection(i connection.Item) string {
-	cmdString, env := GetSshCommand(i)
-	cmd := exec.Command(cmdString[0], cmdString[1:]...)
-	for _, val := range env {
-		cmd.Env = append(cmd.Env, val)
-	}
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
-	return fmt.Sprintf("\n%v\n", strings.Join(cmd.Args, " "))
-}
-
-func RunCommand(i connection.Item, c string) (string, error) {
-	cmdString, env := GetSshCommand(i)
-	c = fmt.Sprintf("%v", c)
-	a := strings.Split(c, " ")
-	cmdString = append(cmdString, a...)
-
-	cmd := exec.Command(cmdString[0], cmdString[1:]...)
-	for _, val := range env {
-		cmd.Env = append(cmd.Env, val)
-	}
-
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-// returns:
-//
-//	slice of command and args
-//	slice of environment variables
-func GetSshCommand(i connection.Item) ([]string, []string) {
+func RunCommand(i connection.Item, c string) string {
 	var env []string
 	command := []string{"ssh", "-o", "ServerAliveInterval=30"}
 
@@ -240,8 +208,28 @@ func GetSshCommand(i connection.Item) ([]string, []string) {
 	}
 
 	command = append(command, i.FinalAddr())
+	if c != "" {
+		command = append(command, strings.Split(c, " ")...)
+	}
 
-	return command, env
+	cmd := exec.Command(command[0], command[1:]...)
+	for _, val := range env {
+		cmd.Env = append(cmd.Env, val)
+	}
+
+	if c == "" {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+		return fmt.Sprintf("\n%v\n", strings.Join(cmd.Args, " "))
+	} else {
+		out, err := cmd.Output()
+		if err != nil {
+			return fmt.Sprintf("%s: %s", err.Error(), out)
+		}
+		return string(out)
+	}
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -361,7 +349,7 @@ func main() {
 				fmt.Printf("\nCould not rename tmux window: %v\n", err)
 			}
 
-			fmt.Println(RunConnection(c))
+			fmt.Println(RunCommand(c, ""))
 
 			if err := HandleTmux(""); err != nil {
 				fmt.Printf("\nCould not reset tmux window: %v\n", err)
@@ -384,12 +372,8 @@ func main() {
 				for _, val := range connItems {
 					title := fmt.Sprintf("Running '%v' on %v", cmdToRun, val.WindowName())
 					fmt.Println(title)
-					out, err := RunCommand(val, cmdToRun)
-					if err != nil {
-						fmt.Println(style.Render(err.Error()))
-					} else {
-						fmt.Println(style.Render(out))
-					}
+					out := RunCommand(val, cmdToRun)
+					fmt.Println(style.Render(out))
 				}
 			}
 		}
