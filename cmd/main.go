@@ -103,6 +103,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.checkedCount++
 			}
 			m.list.SetItem(m.list.GlobalIndex(), i)
+			fv := m.list.FilterValue()
+			if fv != "" {
+				m.list.SetFilterText(fv)
+			}
 		}
 		if key.Matches(msg, customKeyBindings.SelectAll) && m.list.FilterState() != list.Filtering {
 			// (un)select all; honor filter
