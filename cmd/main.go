@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"slices"
-
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -182,7 +181,7 @@ func HandleTmux(name string) error {
 }
 
 func RunCommand(i connection.Item, c string) string {
-	var env []string
+	env := []string{"TERM=" + os.Getenv("TERM")}
 	command := []string{"ssh", "-o", "ServerAliveInterval=30"}
 
 	sshPassPath, err := exec.LookPath("sshpass")
@@ -336,7 +335,7 @@ func main() {
 	lm := fm.(model)
 
 	if lm.checkedCount > 0 {
-		var connItems []connection.Item = GetCheckedItems(lm)
+		connItems := GetCheckedItems(lm)
 
 		switch lm.action {
 		case "ShowAuth":
