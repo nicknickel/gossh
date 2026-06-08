@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -319,6 +321,18 @@ func initModel(items []list.Item) model {
 	return m
 }
 
+func RunCommandWithOutput(connItem connection.Item, c string, termWidth int) {
+	style := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		Padding(1, 1, 1, 1).
+		BorderForeground(lipgloss.Color("228")).
+		Width(termWidth - 10)
+
+	title := fmt.Sprintf("Running '%v' on %v", c, connItem.WindowName())
+	out := RunCommand(connItem, c)
+	fmt.Printf("%v\n%v\n", title, style.Render(out))
+}
+
 func main() {
 	log.Init()
 
@@ -367,17 +381,23 @@ func main() {
 				if err != nil {
 					width = 100
 				}
-				style := lipgloss.NewStyle().
-					BorderStyle(lipgloss.NormalBorder()).
-					Padding(1, 1, 1, 1).
-					BorderForeground(lipgloss.Color("228")).
-					Width(width - 10)
-				for _, val := range connItems {
-					title := fmt.Sprintf("Running '%v' on %v", cmdToRun, val.WindowName())
-					fmt.Println(title)
-					out := RunCommand(val, cmdToRun)
-					fmt.Println(style.Render(out))
+
+				var wg sync.WaitGroup
+				maxConcurrent := 5
+				concurrentEnv := os.Getenv("GOSSH_CONCURRENCY")
+				if concurrentEnv != "" {
+					maxConcurrent, _ = strconv.Atoi(concurrentEnv)
 				}
+				limiter := make(chan int, maxConcurrent)
+
+				for _, val := range connItems {
+					wg.Go(func() {
+						limiter <- 1
+						RunCommandWithOutput(val, cmdToRun, width)
+						<-limiter
+					})
+				}
+				wg.Wait()
 			}
 		}
 
