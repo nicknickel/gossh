@@ -44,11 +44,12 @@ Several environment variables are also supported:
 * `GOSSH_TMUX`: (string) When not empty will attempt to set the tmux window name
 * `GOSSH_PASSPHRASE`: (string) Uses contents as passphrase to decrypt `age` encrypted password file indicated by `passfile` key on connection
 * `GOSSH_LOG_ROLLOVER`: (integer) Sets the maximum size in bytes for the log file before rollover. Defaults to 1048576 (1MB) if not set.
+* `GOSSH_CONCURRENCY`: (integer) Sets the maximum number of concurrent commands to execute when running commands on multiple devices (default is 5).
 
 ## Features
 * Filtering list
 * Supports encrypted password files and private key files with `age`
-* Run command across multiple devices
+* Run command across multiple devices concurrently
 * Output encrypted authentication information
 
 ## Logging
