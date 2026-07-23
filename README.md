@@ -51,6 +51,7 @@ Several environment variables are also supported:
 * Supports encrypted password files and private key files with `age`
 * Run command across multiple devices concurrently
 * Output encrypted authentication information
+* Copy a file to one or more devices or recieve a file from one or more devices (Untested on Windows)
 
 ## Logging
 
