@@ -16,6 +16,7 @@ type Item struct {
 	Conn    Connection
 	Checked bool
 	Index   int
+	TempIdFile string = ""
 }
 
 func (i Item) FinalAddr() string {

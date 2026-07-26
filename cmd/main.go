@@ -238,7 +238,7 @@ func ApplyAuth(i *connection.Item, comm *[]string, env *[]string) {
 		tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
 		if tempIdFile != "" {
 			*comm = append(*comm, tempIdFile)
-			defer os.Remove(tempIdFile)
+			i.TempIdFile = tempIdFile
 		} else {
 			*comm = append(*comm, i.Conn.IdentityFile)
 		}
@@ -299,17 +299,6 @@ func RunCommandWithOutput(cmd *exec.Cmd) string {
 	return string(out)
 }
 
-// func RunCommand(i connection.Item, c string) string {
-// 	cmd := GetSshCommand(i, c)
-// 	var out string
-// 	if c == "" {
-// 		out = RunAttachedCommand(*cmd)
-// 	} else {
-// 		out = RunCommandWithOutput(*cmd)
-// 	}
-// 	return string(out)
-// }
-
 func RunAttachedCommand(i connection.Item, c string) string {
 	cmd := GetSshCommand(i, c)
 	cmd.Stdout = os.Stdout
@@ -325,6 +314,7 @@ func RunSendCommand(conns []connection.Item, src string, dest string) {
 	for _, conn := range conns {
 		cmds = append(cmds, GetSendCommand(conn, src, dest))
 		titles = append(titles, fmt.Sprintf("Copying %v to %v:%v", src, conn.WindowName(), dest))
+		defer os.Remove(conn.TempIdFile)
 	}
 
 	runConcurrentCommandWithOutput(cmds, titles)
@@ -340,6 +330,7 @@ func RunReceiveCommand(conns []connection.Item, remoteSrc string, dest string) {
 
 		cmds = append(cmds, GetReceiveCommand(conn, remoteSrc, uniqueDest))
 		titles = append(titles, fmt.Sprintf("Copying %v on %v to %v", remoteSrc, conn.WindowName(), uniqueDest))
+		defer os.Remove(conn.TempIdFile)
 	}
 
 	runConcurrentCommandWithOutput(cmds, titles)
@@ -351,6 +342,7 @@ func RunSshCommand(conns []connection.Item, cmdToRun string) {
 	for _, conn := range conns {
 		cmds = append(cmds, GetSshCommand(conn, cmdToRun))
 		titles = append(titles, fmt.Sprintf("Running %v on %v", cmdToRun, conn.WindowName()))
+		defer os.Remove(conn.TempIdFile)
 	}
 
 	runConcurrentCommandWithOutput(cmds, titles)
