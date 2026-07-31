@@ -60,3 +60,7 @@ func (i Item) WindowName() string {
 
 	return windowName
 }
+
+func (i Item) CleanTitle() string {
+	return strings.ReplaceAll(i.Name, " ", "")
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -217,50 +219,9 @@ func HandleTmux(name string) error {
 	return nil
 }
 
-func ApplyAuth(i *connection.Item, comm *[]string, env *[]string) {
-	sshPassPath, err := exec.LookPath("sshpass")
-	if err != nil {
-		log.Logger.Warn("sshpass not found")
-	}
-
-	if i.Conn.PassFile != "" && sshPassPath != "" {
-		*comm = slices.Insert(*comm, 0, "sshpass")
-
-		pw := encryption.GetEncryptedContents(i.Conn.PassFile)
-		if pw == "" {
-			*comm = slices.Insert(*comm, 1, []string{"-f", i.Conn.PassFile}...)
-		} else {
-			*comm = slices.Insert(*comm, 1, "-e")
-			*env = append(*env, "SSHPASS="+pw)
-		}
-	} else if i.Conn.IdentityFile != "" {
-		*comm = append(*comm, "-i")
-		tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
-		if tempIdFile != "" {
-			*comm = append(*comm, tempIdFile)
-			defer os.Remove(tempIdFile)
-		} else {
-			*comm = append(*comm, i.Conn.IdentityFile)
-		}
-	}
-}
-
-func CreateCommand(command *[]string, env *[]string) *exec.Cmd {
-	cmd := exec.Command((*command)[0], (*command)[1:]...)
-	for _, val := range *env {
-		cmd.Env = append(cmd.Env, val)
-	}
-	return cmd
-}
-
-func GetEnv() []string {
-	env := []string{"TERM=" + os.Getenv("TERM")}
-	return env
-}
-
 func GetSshCommand(i connection.Item, c string) *exec.Cmd {
 	env := GetEnv()
-	command := []string{"ssh", "-o", "ServerAliveInterval=30", i.FinalAddr()}
+	command := []string{"ssh", "-o", "ServerAliveInte |rval=30", i.FinalAddr()}
 	ApplyAuth(&i, &command, &env)
 
 	// command = append(command, i.FinalAddr())
@@ -286,37 +247,6 @@ func GetReceiveCommand(i connection.Item, remoteSrc string, dest string) *exec.C
 	ApplyAuth(&i, &command, &env)
 	cmd := CreateCommand(&command, &env)
 	return cmd
-}
-
-func RunCommandWithOutput(cmd *exec.Cmd) string {
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Sprintf("%s: %s", err.Error(), out)
-	}
-	if string(out) == "" {
-		return "Success!"
-	}
-	return string(out)
-}
-
-// func RunCommand(i connection.Item, c string) string {
-// 	cmd := GetSshCommand(i, c)
-// 	var out string
-// 	if c == "" {
-// 		out = RunAttachedCommand(*cmd)
-// 	} else {
-// 		out = RunCommandWithOutput(*cmd)
-// 	}
-// 	return string(out)
-// }
-
-func RunAttachedCommand(i connection.Item, c string) string {
-	cmd := GetSshCommand(i, c)
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-	cmd.Run()
-	return fmt.Sprintf("\n%v\n", strings.Join(cmd.Args, " "))
 }
 
 func RunSendCommand(conns []connection.Item, src string, dest string) {
@@ -356,12 +286,108 @@ func RunSshCommand(conns []connection.Item, cmdToRun string) {
 	runConcurrentCommandWithOutput(cmds, titles)
 }
 
-func runConcurrentCommandWithOutput(cmds []*exec.Cmd, titles []string) {
-	fd := int(os.Stdout.Fd())
-	width, _, err := term.GetSize(fd)
-	if err != nil {
-		width = 100
+func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
+	sshPassPath, err := exec.LookPath("sshpass")
+	if err != nil || sshPassPath == "" {
+		log.Logger.Warn("sshpass not found")
+		return []string{}, []string{}, errors.New("sshpass not found")
 	}
+
+	if i.Conn.PassFile == "" {
+		return []string{}, []string{}, errors.New("passfile parameter not defined")
+	}
+
+	pw := encryption.GetEncryptedContents(i.Conn.PassFile)
+	if pw == "" {
+		return []string{"sshpass", "-f", "{{.Conn.PassFile}}"}, nil, nil
+	} else {
+		return []string{"sshpass", "-e"}, []string{"SSHPASS=" + pw}, nil
+	}
+}
+
+func GetIdentityTemplate(i *connection.Item) ([]string, bool, error) {
+	if i.Conn.IdentityFile != "" {
+		return []string{}, false, errors.New("No identify file indicated")
+	}
+
+	tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
+	if tempIdFile != "" {
+		return []string{"-i", tempIdFile}, true, nil
+	}
+
+	return []string{"-i", i.Conn.IdentityFile}, false, nil
+}
+
+func CreateCommand(c *[]string, e *[]string) *exec.Cmd {
+	c1 := template.New()
+	c1, err := c1.Parse(title)
+	// TODO: Handle error
+	if err != nil {
+		panic(err)
+	}
+
+	cmd := exec.Command((*c)[0], (*c)[1:]...)
+	for _, val := range *e {
+		cmd.Env = append(cmd.Env, val)
+	}
+	return cmd
+}
+
+func GetEnv() []string {
+	env := []string{"TERM=" + os.Getenv("TERM")}
+	return env
+}
+
+func RunAttachedCommand(cmd *exec.Cmd) string {
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	return fmt.Sprintf("\n%v\n", strings.Join(cmd.Args, " "))
+}
+
+func RunCommandWithOutput(cmd *exec.Cmd) string {
+	out, err := cmd.Output()
+	if err != nil {
+		return fmt.Sprintf("%s: %s", err.Error(), out)
+	}
+	if string(out) == "" {
+		return "Success!"
+	}
+	return string(out)
+}
+
+func RunCommand(i *connection.Item, c []string, a bool) string {
+	env := GetEnv()
+
+	passTemplate, passEnv, err := GetPasswordTemplate(i)
+	if err == nil {
+		c = slices.Insert(c, 0, passTemplate...)
+		if passEnv != nil {
+			env = append(env, passEnv...)
+		}
+	} else {
+		idTemplate, cleanup, err := GetIdentityTemplate(i)
+		if err == nil {
+			c = slices.Insert(c, 1, idTemplate...)
+			if cleanup {
+				defer os.Remove(idTemplate[1])
+			}
+		}
+	}
+	cmd := CreateCommand(&c, &env)
+
+	var out string
+	if a {
+		out = RunAttachedCommand(cmd)
+	} else {
+		out = RunCommandWithOutput(cmd)
+	}
+	return out
+}
+
+func runConcurrentCommandWithOutput(items []connection.Item, title string, c []string) {
+	width := GetTermWidth()
 
 	style := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
@@ -377,16 +403,33 @@ func runConcurrentCommandWithOutput(cmds []*exec.Cmd, titles []string) {
 	}
 	limiter := make(chan int, maxConcurrent)
 
-	for i, cmd := range cmds {
+	t1 := template.New("title")
+	t1, err := t1.Parse(title)
+	// TODO: Handle error
+	if err != nil {
+		panic(err)
+	}
+
+	for _, item := range items {
 		wg.Go(func() {
 			limiter <- 1
-			out := RunCommandWithOutput(cmd)
-			output := fmt.Sprintf("%v\n%v\n", titles[i], style.Render(out))
+			out := RunCommand(&item, c, false)
+			output := fmt.Sprintf("\n%v\n", style.Render(out))
+			t1.Execute(os.Stdout, item)
 			fmt.Println(output)
 			<-limiter
 		})
 	}
 	wg.Wait()
+}
+
+func GetTermWidth() int {
+	fd := int(os.Stdout.Fd())
+	width, _, err := term.GetSize(fd)
+	if err != nil {
+		return 100
+	}
+	return width
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -512,11 +555,16 @@ func main() {
 				fmt.Printf("\nCould not reset tmux window: %v\n", err)
 			}
 		case "ReceiveFile":
-			src, tgt, err := sendreceive.Get()
+			remoteSrc, dest, err := sendreceive.Get()
 
-			if src != "" && tgt != "" && err == nil {
-				RunReceiveCommand(connItems, src, tgt)
+			if remoteSrc == "" || dest == "" || err != nil {
+				break
 			}
+
+			destName := path.Clean(path.Join(dest, path.Base(remoteSrc)))
+			osCommand := []string{"scp", "-rp", "{{.FinalAddr}}:" + remoteSrc, destName + "_{{.CleanTitle}}"}
+			title := fmt.Sprintf("Copying %v on {{.WindowName}} to %v_{{.CleanTitle}}", remoteSrc, destName)
+
 		case "SendFile":
 			src, tgt, err := sendreceive.Get()
 
