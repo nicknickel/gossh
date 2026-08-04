@@ -514,7 +514,7 @@ func main() {
 		case "SendFile":
 			src, remoteDest, err := sendreceive.Get()
 
-			if src != "" && remoteDest != "" && err == nil {
+			if src == "" || remoteDest == "" || err != nil {
 				break
 			}
 
@@ -526,7 +526,7 @@ func main() {
 			// get command to run
 			cmdToRun, err := runcommand.Get()
 
-			if cmdToRun != "" && err == nil {
+			if cmdToRun == "" || err != nil {
 				break
 			}
 
