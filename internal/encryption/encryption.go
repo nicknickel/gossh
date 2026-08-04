@@ -23,6 +23,10 @@ func GetPassphrase() string {
 }
 
 func GetEncryptedContents(encFile string) string {
+	if encFile == "" {
+		return ""
+	}
+
 	p := GetPassphrase()
 	if p == "" {
 		return ""
@@ -55,6 +59,10 @@ func GetEncryptedContents(encFile string) string {
 }
 
 func GetEncryptedIdentity(encFile string) string {
+	if encFile == "" {
+		return ""
+	}
+
 	identityContents := GetEncryptedContents(encFile)
 	if identityContents != "" {
 		pattern := fmt.Sprintf("%v.pem.*", filepath.Base(encFile))

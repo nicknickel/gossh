@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -217,37 +220,59 @@ func HandleTmux(name string) error {
 	return nil
 }
 
-func ApplyAuth(i *connection.Item, comm *[]string, env *[]string) {
+func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
 	sshPassPath, err := exec.LookPath("sshpass")
-	if err != nil {
+	if err != nil || sshPassPath == "" {
 		log.Logger.Warn("sshpass not found")
+		return []string{}, []string{}, errors.New("sshpass not found")
 	}
 
-	if i.Conn.PassFile != "" && sshPassPath != "" {
-		*comm = slices.Insert(*comm, 0, "sshpass")
+	if i.Conn.PassFile == "" {
+		return []string{}, []string{}, errors.New("passfile parameter not defined")
+	}
 
-		pw := encryption.GetEncryptedContents(i.Conn.PassFile)
-		if pw == "" {
-			*comm = slices.Insert(*comm, 1, []string{"-f", i.Conn.PassFile}...)
-		} else {
-			*comm = slices.Insert(*comm, 1, "-e")
-			*env = append(*env, "SSHPASS="+pw)
-		}
-	} else if i.Conn.IdentityFile != "" {
-		*comm = append(*comm, "-i")
-		tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
-		if tempIdFile != "" {
-			*comm = append(*comm, tempIdFile)
-			defer os.Remove(tempIdFile)
-		} else {
-			*comm = append(*comm, i.Conn.IdentityFile)
-		}
+	pw := encryption.GetEncryptedContents(i.Conn.PassFile)
+	if pw == "" {
+		return []string{"sshpass", "-f", "{{.Conn.PassFile}}"}, nil, nil
+	} else {
+		return []string{"sshpass", "-e"}, []string{"SSHPASS=" + pw}, nil
 	}
 }
 
-func CreateCommand(command *[]string, env *[]string) *exec.Cmd {
-	cmd := exec.Command((*command)[0], (*command)[1:]...)
-	for _, val := range *env {
+func GetIdentityTemplate(i *connection.Item) ([]string, bool, error) {
+	if i.Conn.IdentityFile == "" {
+		return []string{}, false, errors.New("No identify file indicated")
+	}
+
+	tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)
+	if tempIdFile != "" {
+		return []string{"-i", tempIdFile}, true, nil
+	}
+
+	return []string{"-i", i.Conn.IdentityFile}, false, nil
+}
+
+func RenderTemplateSlice(s *[]string, i connection.Item) []string {
+	joined := strings.Join(*s, " ")
+
+	t1 := template.New("render")
+	t1, _ = t1.Parse(joined)
+	// Subjectively don't need to handle error due to
+	// template being defined in code
+
+	var buf bytes.Buffer
+	t1.Execute(&buf, i)
+
+	joined = buf.String()
+	return strings.Split(joined, " ")
+}
+
+func CreateCommand(c *[]string, e *[]string, i connection.Item) *exec.Cmd {
+	cText := RenderTemplateSlice(c, i)
+	eText := RenderTemplateSlice(e, i)
+
+	cmd := exec.Command(cText[0], cText[1:]...)
+	for _, val := range eText {
 		cmd.Env = append(cmd.Env, val)
 	}
 	return cmd
@@ -258,60 +283,7 @@ func GetEnv() []string {
 	return env
 }
 
-func GetSshCommand(i connection.Item, c string) *exec.Cmd {
-	env := GetEnv()
-	command := []string{"ssh", "-o", "ServerAliveInterval=30", i.FinalAddr()}
-	ApplyAuth(&i, &command, &env)
-
-	// command = append(command, i.FinalAddr())
-	if c != "" {
-		command = append(command, strings.Split(c, " ")...)
-	}
-
-	cmd := CreateCommand(&command, &env)
-	return cmd
-}
-
-func GetSendCommand(i connection.Item, src string, dest string) *exec.Cmd {
-	env := GetEnv()
-	command := []string{"scp", "-rp", src, i.FinalAddr() + ":" + dest}
-	ApplyAuth(&i, &command, &env)
-	cmd := CreateCommand(&command, &env)
-	return cmd
-}
-
-func GetReceiveCommand(i connection.Item, remoteSrc string, dest string) *exec.Cmd {
-	env := GetEnv()
-	command := []string{"scp", "-rp", i.FinalAddr() + ":" + remoteSrc, dest}
-	ApplyAuth(&i, &command, &env)
-	cmd := CreateCommand(&command, &env)
-	return cmd
-}
-
-func RunCommandWithOutput(cmd *exec.Cmd) string {
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Sprintf("%s: %s", err.Error(), out)
-	}
-	if string(out) == "" {
-		return "Success!"
-	}
-	return string(out)
-}
-
-// func RunCommand(i connection.Item, c string) string {
-// 	cmd := GetSshCommand(i, c)
-// 	var out string
-// 	if c == "" {
-// 		out = RunAttachedCommand(*cmd)
-// 	} else {
-// 		out = RunCommandWithOutput(*cmd)
-// 	}
-// 	return string(out)
-// }
-
-func RunAttachedCommand(i connection.Item, c string) string {
-	cmd := GetSshCommand(i, c)
+func RunAttachedCommand(cmd *exec.Cmd) string {
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
@@ -319,49 +291,48 @@ func RunAttachedCommand(i connection.Item, c string) string {
 	return fmt.Sprintf("\n%v\n", strings.Join(cmd.Args, " "))
 }
 
-func RunSendCommand(conns []connection.Item, src string, dest string) {
-	var cmds []*exec.Cmd
-	var titles []string
-	for _, conn := range conns {
-		cmds = append(cmds, GetSendCommand(conn, src, dest))
-		titles = append(titles, fmt.Sprintf("Copying %v to %v:%v", src, conn.WindowName(), dest))
-	}
-
-	runConcurrentCommandWithOutput(cmds, titles)
-}
-
-func RunReceiveCommand(conns []connection.Item, remoteSrc string, dest string) {
-	var cmds []*exec.Cmd
-	var titles []string
-	for _, conn := range conns {
-		hardenedName := strings.ReplaceAll(conn.Name, " ", "")
-		destName := fmt.Sprintf("%s_%s", path.Base(remoteSrc), hardenedName)
-		uniqueDest := path.Clean(path.Join(dest, destName))
-
-		cmds = append(cmds, GetReceiveCommand(conn, remoteSrc, uniqueDest))
-		titles = append(titles, fmt.Sprintf("Copying %v on %v to %v", remoteSrc, conn.WindowName(), uniqueDest))
-	}
-
-	runConcurrentCommandWithOutput(cmds, titles)
-}
-
-func RunSshCommand(conns []connection.Item, cmdToRun string) {
-	var cmds []*exec.Cmd
-	var titles []string
-	for _, conn := range conns {
-		cmds = append(cmds, GetSshCommand(conn, cmdToRun))
-		titles = append(titles, fmt.Sprintf("Running %v on %v", cmdToRun, conn.WindowName()))
-	}
-
-	runConcurrentCommandWithOutput(cmds, titles)
-}
-
-func runConcurrentCommandWithOutput(cmds []*exec.Cmd, titles []string) {
-	fd := int(os.Stdout.Fd())
-	width, _, err := term.GetSize(fd)
+func RunCommandWithOutput(cmd *exec.Cmd) string {
+	outerr, err := cmd.CombinedOutput()
 	if err != nil {
-		width = 100
+		return fmt.Sprintf("%s: %s", err.Error(), outerr)
 	}
+	if string(outerr) == "" {
+		return "Success!"
+	}
+	return string(outerr)
+}
+
+func RunCommand(i *connection.Item, c []string, a bool) string {
+	env := GetEnv()
+
+	passTemplate, passEnv, err := GetPasswordTemplate(i)
+	if err == nil {
+		c = slices.Insert(c, 0, passTemplate...)
+		if passEnv != nil {
+			env = append(env, passEnv...)
+		}
+	} else {
+		idTemplate, cleanup, err := GetIdentityTemplate(i)
+		if err == nil {
+			c = slices.Insert(c, 1, idTemplate...)
+			if cleanup {
+				defer os.Remove(idTemplate[1])
+			}
+		}
+	}
+	cmd := CreateCommand(&c, &env, *i)
+
+	var out string
+	if a {
+		out = RunAttachedCommand(cmd)
+	} else {
+		out = RunCommandWithOutput(cmd)
+	}
+	return out
+}
+
+func runConcurrentCommandWithOutput(items []connection.Item, title string, c []string) {
+	width := GetTermWidth()
 
 	style := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
@@ -377,16 +348,31 @@ func runConcurrentCommandWithOutput(cmds []*exec.Cmd, titles []string) {
 	}
 	limiter := make(chan int, maxConcurrent)
 
-	for i, cmd := range cmds {
+	t1 := template.New("title")
+	t1, _ = t1.Parse(title)
+	// Subjectively unecessary to handle error due to
+	// template being defined in code
+
+	for _, item := range items {
 		wg.Go(func() {
 			limiter <- 1
-			out := RunCommandWithOutput(cmd)
-			output := fmt.Sprintf("%v\n%v\n", titles[i], style.Render(out))
+			out := RunCommand(&item, c, false)
+			output := fmt.Sprintf("\n%v\n", style.Render(out))
+			t1.Execute(os.Stdout, item)
 			fmt.Println(output)
 			<-limiter
 		})
 	}
 	wg.Wait()
+}
+
+func GetTermWidth() int {
+	fd := int(os.Stdout.Fd())
+	width, _, err := term.GetSize(fd)
+	if err != nil {
+		return 100
+	}
+	return width
 }
 
 func FilterFunc(t string, items []string) []list.Rank {
@@ -506,31 +492,48 @@ func main() {
 				fmt.Printf("\nCould not rename tmux window: %v\n", err)
 			}
 
-			fmt.Println(RunAttachedCommand(c, ""))
+			osCommand := []string{"ssh", "{{.FinalAddr}}"}
+			out := RunCommand(&c, osCommand, true)
+			fmt.Println(out)
 
 			if err := HandleTmux(""); err != nil {
 				fmt.Printf("\nCould not reset tmux window: %v\n", err)
 			}
 		case "ReceiveFile":
-			src, tgt, err := sendreceive.Get()
+			remoteSrc, dest, err := sendreceive.Get()
 
-			if src != "" && tgt != "" && err == nil {
-				RunReceiveCommand(connItems, src, tgt)
+			if remoteSrc == "" || dest == "" || err != nil {
+				break
 			}
+
+			destName := path.Clean(path.Join(dest, path.Base(remoteSrc)))
+			osCommand := []string{"scp", "-rp", "{{.FinalAddr}}:" + remoteSrc, destName + "_{{.CleanTitle}}"}
+			title := fmt.Sprintf("Copying %v on {{.WindowName}} to %v_{{.CleanTitle}}", remoteSrc, destName)
+			runConcurrentCommandWithOutput(connItems, title, osCommand)
+
 		case "SendFile":
-			src, tgt, err := sendreceive.Get()
+			src, remoteDest, err := sendreceive.Get()
 
-			if src != "" && tgt != "" && err == nil {
-				RunSendCommand(connItems, src, tgt)
+			if src != "" && remoteDest != "" && err == nil {
+				break
 			}
+
+			osCommand := []string{"scp", "-rp", src, "{{.FinalAddr}}:" + remoteDest}
+			title := fmt.Sprintf("Copying %v to %v on {{.WindowName}}", src, remoteDest)
+			runConcurrentCommandWithOutput(connItems, title, osCommand)
 
 		case "RunCommand":
 			// get command to run
 			cmdToRun, err := runcommand.Get()
 
 			if cmdToRun != "" && err == nil {
-				RunSshCommand(connItems, cmdToRun)
+				break
 			}
+
+			osCommand := []string{"ssh", "{{.FinalAddr}}", "'", cmdToRun, "'"}
+			title := fmt.Sprintf("running %v on {{.WindowName}}", cmdToRun)
+			runConcurrentCommandWithOutput(connItems, title, osCommand)
+
 		}
 
 	}
