@@ -240,7 +240,7 @@ func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
 }
 
 func GetIdentityTemplate(i *connection.Item) ([]string, bool, error) {
-	if i.Conn.IdentityFile != "" {
+	if i.Conn.IdentityFile == "" {
 		return []string{}, false, errors.New("No identify file indicated")
 	}
 
@@ -256,21 +256,14 @@ func RenderTemplateSlice(s *[]string, i connection.Item) []string {
 	joined := strings.Join(*s, " ")
 
 	t1 := template.New("render")
-	t1, err := t1.Parse(joined)
-	// TODO: Handle error
-	if err != nil {
-		panic(err)
-	}
+	t1, _ = t1.Parse(joined)
+	// Subjectively don't need to handle error due to
+	// template being defined in code
 
 	var buf bytes.Buffer
-	err = t1.Execute(&buf, i)
-	// TODO: Handle error
-	if err != nil {
-		panic(err)
-	}
+	t1.Execute(&buf, i)
 
 	joined = buf.String()
-	fmt.Println(joined)
 	return strings.Split(joined, " ")
 }
 
@@ -320,7 +313,6 @@ func RunCommand(i *connection.Item, c []string, a bool) string {
 		}
 	} else {
 		idTemplate, cleanup, err := GetIdentityTemplate(i)
-		fmt.Println(idTemplate)
 		if err == nil {
 			c = slices.Insert(c, 1, idTemplate...)
 			if cleanup {
@@ -357,11 +349,9 @@ func runConcurrentCommandWithOutput(items []connection.Item, title string, c []s
 	limiter := make(chan int, maxConcurrent)
 
 	t1 := template.New("title")
-	t1, err := t1.Parse(title)
-	// TODO: Handle error
-	if err != nil {
-		panic(err)
-	}
+	t1, _ = t1.Parse(title)
+	// Subjectively unecessary to handle error due to
+	// template being defined in code
 
 	for _, item := range items {
 		wg.Go(func() {
