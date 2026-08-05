@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"filippo.io/age"
 	"github.com/nicknickel/gossh/internal/log"
@@ -55,7 +56,7 @@ func GetEncryptedContents(encFile string) string {
 		return ""
 	}
 
-	return out.String()
+	return strings.TrimSpace(out.String())
 }
 
 func GetEncryptedIdentity(encFile string) string {

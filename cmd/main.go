@@ -530,7 +530,8 @@ func main() {
 				break
 			}
 
-			osCommand := []string{"ssh", "{{.FinalAddr}}", "'", cmdToRun, "'"}
+			osCommand := []string{"ssh", "{{.FinalAddr}}"}
+			osCommand = append(osCommand, strings.Split(cmdToRun, " ")...)
 			title := fmt.Sprintf("running %v on {{.WindowName}}", cmdToRun)
 			runConcurrentCommandWithOutput(connItems, title, osCommand)
 
