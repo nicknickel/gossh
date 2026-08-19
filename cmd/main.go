@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,6 +20,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/creativeprojects/go-selfupdate"
 	"github.com/nicknickel/gossh/internal/config"
 	"github.com/nicknickel/gossh/internal/connection"
 	"github.com/nicknickel/gossh/internal/encryption"
@@ -25,6 +29,9 @@ import (
 	"github.com/nicknickel/gossh/internal/sendreceive"
 	"golang.org/x/term"
 )
+
+var updateVersion bool
+var version string = "dev"
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
@@ -459,8 +466,51 @@ func initModel(items []list.Item) model {
 	return m
 }
 
-func main() {
+func updateExecutable() error {
+
+	if version == "dev" {
+		return errors.New("dev version not upgradable")
+	}
+
+	latest, found, err := selfupdate.DetectLatest(context.Background(), selfupdate.ParseSlug("nicknickel/gossh"))
+	if err != nil {
+		return fmt.Errorf("error occurred while detecting version: %w", err)
+	}
+	if !found {
+		return fmt.Errorf("latest version for %s/%s could not be found from github repository", runtime.GOOS, runtime.GOARCH)
+	}
+
+	if latest.LessOrEqual(version) {
+		fmt.Printf("Current version (%s) is the latest", version)
+		return nil
+	}
+
+	exe, err := selfupdate.ExecutablePath()
+	if err != nil {
+		return errors.New("could not locate executable path")
+	}
+	if err := selfupdate.UpdateTo(context.Background(), latest.AssetURL, latest.AssetName, exe); err != nil {
+		return fmt.Errorf("error occurred while updating binary: %w", err)
+	}
+	fmt.Printf("Successfully updated to version %s", latest.Version())
+	return nil
+}
+
+func init() {
 	log.Init()
+	flag.BoolVar(&updateVersion, "update", false, "Pass this flag to update the gossh version to latest github release and exit")
+}
+
+func main() {
+	flag.Parse()
+
+	if updateVersion {
+		if err := updateExecutable(); err != nil {
+			fmt.Printf("Could not update to latest version: %v\n", err)
+			os.Exit(2)
+		}
+		os.Exit(0)
+	}
 
 	items := config.ReadConnections()
 	m := initModel(items)
