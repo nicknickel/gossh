@@ -481,7 +481,7 @@ func updateExecutable() error {
 	}
 
 	if latest.LessOrEqual(version) {
-		fmt.Printf("Current version (%s) is the latest", version)
+		fmt.Printf("Current version (%s) is the latest\n", version)
 		return nil
 	}
 
@@ -492,7 +492,7 @@ func updateExecutable() error {
 	if err := selfupdate.UpdateTo(context.Background(), latest.AssetURL, latest.AssetName, exe); err != nil {
 		return fmt.Errorf("error occurred while updating binary: %w", err)
 	}
-	fmt.Printf("Successfully updated to version %s", latest.Version())
+	fmt.Printf("Successfully updated to version %s\n", latest.Version())
 	return nil
 }
 
