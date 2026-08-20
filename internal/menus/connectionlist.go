@@ -244,9 +244,12 @@ func newConnectionlistModel(items []list.Item) connectionlistModel {
 	return m
 }
 
-func ConnectionList() (*connectionlistModel, error) {
+func ConnectionList(initialFilter string) (*connectionlistModel, error) {
 	items := config.ReadConnections()
 	m := newConnectionlistModel(items)
+	if initialFilter != "" {
+		m.list.SetFilterText(initialFilter)
+	}
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	fm, err := p.Run()
