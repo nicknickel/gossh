@@ -21,10 +21,13 @@ import (
 
 var updateVersion bool
 var version string = "dev"
+var initialFilter string
 
 func init() {
 	log.Init()
 	flag.BoolVar(&updateVersion, "update", false, "Pass this flag to update the gossh version to latest github release and exit")
+	flag.StringVar(&initialFilter, "filter", "", "Pass this flag to filter the initial list of connections")
+	flag.StringVar(&initialFilter, "f", "", "shorthand for filter")
 }
 
 func updateExecutable() error {
@@ -111,7 +114,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	lm, err := menus.ConnectionList()
+	lm, err := menus.ConnectionList(initialFilter)
 	if err != nil {
 		log.Logger.Error("Error running program: ", err)
 		os.Exit(1)
