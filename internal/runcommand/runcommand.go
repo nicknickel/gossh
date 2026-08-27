@@ -19,6 +19,9 @@ import (
 	"text/template"
 )
 
+// GetPasswordTemplate returns a slice of strings containing the sshpass
+// command template, another slice of strings containing the environment
+// variables necessary for the command to work, and an error
 func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
 	sshPassPath, err := exec.LookPath("sshpass")
 	if err != nil || sshPassPath == "" {
