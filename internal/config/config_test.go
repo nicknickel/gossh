@@ -246,7 +246,6 @@ test4:
 		t.Errorf("ReadConnections() expected 0 for unreadable config file; got %v", len(got))
 	}
 
-	// segfaults for some reason
 	// os.Chmod(badF, 0777)
 	// got = ReadConnections([]string{badF})
 	// if len(got) != 0 {
