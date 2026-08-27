@@ -245,7 +245,8 @@ func newConnectionlistModel(items []list.Item) connectionlistModel {
 }
 
 func ConnectionList(initialFilter string) (*connectionlistModel, error) {
-	items := config.ReadConnections()
+	configFiles := config.ConfigFiles()
+	items := config.ReadConnections(configFiles)
 	m := newConnectionlistModel(items)
 	if initialFilter != "" {
 		m.list.SetFilterText(initialFilter)

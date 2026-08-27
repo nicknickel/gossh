@@ -71,6 +71,11 @@ func TestItem_Title(t *testing.T) {
 	if got := item.Title(); got != "host" {
 		t.Errorf("Title() = %v, want %v", got, "host")
 	}
+
+	item.Checked = true
+	if got := item.Title(); got != "[x] host" {
+		t.Errorf("Title() = %v, want %v", got, "[x] host")
+	}
 }
 
 func TestItem_Description(t *testing.T) {
@@ -134,5 +139,12 @@ func TestItem_WindowName(t *testing.T) {
 				t.Errorf("WindowName() = %v, want %v", got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestItem_CleanTitle(t *testing.T) {
+	item := Item{Name: "host value"}
+	if got := item.CleanTitle(); got != "hostvalue" {
+		t.Errorf("Title() = %v, want %v", got, "hostvalue")
 	}
 }

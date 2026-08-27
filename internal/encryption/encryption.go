@@ -22,6 +22,9 @@ func GetPassphrase() string {
 	return passphrase
 }
 
+// GetEncryptedContents returns the contents of contents
+// of an encrypted file encrypted with age. Returns ""
+// if unable to decrypt.
 func GetEncryptedContents(encFile string) string {
 	if encFile == "" {
 		return ""

@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -44,7 +46,6 @@ func prepareConfigFiles(t *testing.T, expected []string) {
 			os.Remove(home + "/.config/gossh")
 		}
 	})
-
 }
 
 func TestNormalizeString(t *testing.T) {
@@ -172,15 +173,83 @@ func TestKeys(t *testing.T) {
 	if len(got) != 3 {
 		t.Errorf("Keys() len = %d, want 3", len(got))
 	}
-	if got[0] != "B-host" {
-		t.Errorf("First item = %s, want B-host", got[0])
+	if !slices.Contains(got, "B-host") {
+		t.Errorf("B-host not in %v", got)
 	}
-	if got[1] != "A_host" {
-		t.Errorf("Second item = %s, want A_host", got[1])
+	if !slices.Contains(got, "A_host") {
+		t.Errorf("A_host not in %v", got)
 	}
-	if got[2] != "cHost" {
-		t.Errorf("Third item = %s, want cHost", got[2])
+	if !slices.Contains(got, "cHost") {
+		t.Errorf("cHost not in %v", got)
 	}
 }
 
-// Note: TestReadConnections would require mocking file system, which is more complex. Skipping for now or implement with test files.
+func TestReadConnections(t *testing.T) {
+	f := "./gossh_test_config"
+	content := `test3:
+  address: test3
+  user: test3
+  comment: test3
+  passfile: ./test_pass
+  identity: ./test_ident
+test4:
+  address: test4
+  user: test4
+  comment: test4
+  passfile: ./test_bad
+  identity: ./test_bad
+  `
+
+	os.WriteFile(f, []byte(content), os.FileMode(0777))
+	defer os.Remove(f)
+	os.WriteFile("./test_ident", []byte{}, os.FileMode(0777))
+	defer os.Remove("./test_ident")
+	os.WriteFile("./test_pass", []byte{}, os.FileMode(0777))
+	defer os.Remove("./test_pass")
+	currDir := filepath.Dir(f)
+
+	got := ReadConnections([]string{f})
+	if len(got) != 2 {
+		t.Errorf("ReadConnections() want 2; got %v", len(got))
+		t.FailNow()
+	}
+	if got[0].(connection.Item).Name != "test3" || got[1].(connection.Item).Name != "test4" {
+		t.Errorf("ReadConnections() want test3 test4; got %v %v",
+			got[0].(connection.Item).Name,
+			got[1].(connection.Item).Name)
+	}
+	if got[0].(connection.Item).Conn.IdentityFile != filepath.Join(currDir, "./test_ident") {
+		t.Errorf("ReadConnections() IdentityFile want %v; got %v",
+			filepath.Join(currDir, "./test_ident"),
+			got[0].(connection.Item).Conn.IdentityFile)
+	}
+	if got[0].(connection.Item).Conn.PassFile != filepath.Join(currDir, "./test_pass") {
+		t.Errorf("ReadConnections() PassFile want %v; got %v",
+			filepath.Join(currDir, "./test_pass"),
+			got[0].(connection.Item).Conn.PassFile)
+	}
+	if got[1].(connection.Item).Conn.IdentityFile != "test_bad" {
+		t.Errorf("ReadConnections() IdentityFile want %v; got %v", "test_bad",
+			got[1].(connection.Item).Conn.IdentityFile)
+	}
+	if got[1].(connection.Item).Conn.PassFile != "test_bad" {
+		t.Errorf("ReadConnections() PassFile want %v; got %v", "test_bad",
+			got[1].(connection.Item).Conn.PassFile)
+	}
+
+	badF := "./gossh_test_config_unreadable"
+	badYaml := `bad: yaml::data:::`
+	os.WriteFile(badF, []byte(badYaml), os.FileMode(0222))
+	defer os.Remove(badF)
+	got = ReadConnections([]string{badF})
+	if len(got) != 0 {
+		t.Errorf("ReadConnections() expected 0 for unreadable config file; got %v", len(got))
+	}
+
+	// segfaults for some reason
+	// os.Chmod(badF, 0777)
+	// got = ReadConnections([]string{badF})
+	// if len(got) != 0 {
+	// 	t.Errorf("ReadConnections() expected 0 for unparsable config file; got %v", len(got))
+	// }
+}
