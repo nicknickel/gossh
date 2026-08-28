@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nicknickel/gossh/internal/connection"
+	"github.com/nicknickel/gossh/internal/log"
 )
 
 func prepareConfigFiles(t *testing.T, expected []string) {
@@ -185,6 +186,8 @@ func TestKeys(t *testing.T) {
 }
 
 func TestReadConnections(t *testing.T) {
+	log.Init()
+
 	f := "./gossh_test_config"
 	content := `test3:
   address: test3
@@ -246,9 +249,9 @@ test4:
 		t.Errorf("ReadConnections() expected 0 for unreadable config file; got %v", len(got))
 	}
 
-	// os.Chmod(badF, 0777)
-	// got = ReadConnections([]string{badF})
-	// if len(got) != 0 {
-	// 	t.Errorf("ReadConnections() expected 0 for unparsable config file; got %v", len(got))
-	// }
+	os.Chmod(badF, 0777)
+	got = ReadConnections([]string{badF})
+	if len(got) != 0 {
+		t.Errorf("ReadConnections() expected 0 for unparsable config file; got %v", len(got))
+	}
 }
