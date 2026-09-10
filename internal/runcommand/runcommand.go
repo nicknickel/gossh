@@ -19,6 +19,9 @@ import (
 	"text/template"
 )
 
+// GetPasswordTemplate returns a slice of strings containing the sshpass
+// command template, another slice of strings containing the environment
+// variables necessary for the command to work, and an error
 func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
 	sshPassPath, err := exec.LookPath("sshpass")
 	if err != nil || sshPassPath == "" {
@@ -40,7 +43,7 @@ func GetPasswordTemplate(i *connection.Item) ([]string, []string, error) {
 
 func GetIdentityTemplate(i *connection.Item) ([]string, bool, error) {
 	if i.Conn.IdentityFile == "" {
-		return []string{}, false, errors.New("No identify file indicated")
+		return []string{}, false, errors.New("No identity file indicated")
 	}
 
 	tempIdFile := encryption.GetEncryptedIdentity(i.Conn.IdentityFile)

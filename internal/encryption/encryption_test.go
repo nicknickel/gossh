@@ -9,6 +9,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/charmbracelet/log"
+	"github.com/nicknickel/gossh/internal/testutils"
 
 	internal_log "github.com/nicknickel/gossh/internal/log"
 )
@@ -47,37 +48,8 @@ func TestGetEncryptedContents(t *testing.T) {
 	internal_log.Logger = log.New(io.Discard)
 	// Create a temporary encrypted file
 	passphrase := "testpass"
-	recipient, err := age.NewScryptRecipient(passphrase)
-	if err != nil {
-		t.Fatalf("Failed to create identity: %v", err)
-	}
-
 	plaintext := "secretpassword"
-	buf := new(bytes.Buffer)
-	w, err := age.Encrypt(buf, recipient)
-	if err != nil {
-		t.Fatalf("Failed to create encrypt writer: %v", err)
-	}
-	_, err = w.Write([]byte(plaintext))
-	if err != nil {
-		t.Fatalf("Failed to write plaintext: %v", err)
-	}
-	err = w.Close()
-	if err != nil {
-		t.Fatalf("Failed to close encrypt writer: %v", err)
-	}
-
-	tmpfile, err := os.CreateTemp("", "encrypted")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpfile.Name())
-
-	_, err = tmpfile.Write(buf.Bytes())
-	if err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	tmpfile.Close()
+	f1 := testutils.CreateTempEncryptedFile(t, passphrase, plaintext)
 
 	tests := []struct {
 		name       string
@@ -89,21 +61,21 @@ func TestGetEncryptedContents(t *testing.T) {
 		{
 			name:       "valid decryption",
 			passphrase: passphrase,
-			filename:   tmpfile.Name(),
+			filename:   f1,
 			expected:   plaintext,
 			expectErr:  false,
 		},
 		{
 			name:       "wrong passphrase",
 			passphrase: "wrong",
-			filename:   tmpfile.Name(),
+			filename:   f1,
 			expected:   "",
 			expectErr:  true,
 		},
 		{
 			name:       "no passphrase",
 			passphrase: "",
-			filename:   tmpfile.Name(),
+			filename:   f1,
 			expected:   "",
 			expectErr:  false,
 		},
@@ -113,6 +85,13 @@ func TestGetEncryptedContents(t *testing.T) {
 			filename:   "nonexistent",
 			expected:   "",
 			expectErr:  true,
+		},
+		{
+			name:       "empty parameter",
+			passphrase: passphrase,
+			filename:   "",
+			expected:   "",
+			expectErr:  false,
 		},
 	}
 
@@ -200,6 +179,13 @@ func TestGetEncryptedIdentity(t *testing.T) {
 			filename:      "nonexistent",
 			expectedBlank: true,
 			expectErr:     true,
+		},
+		{
+			name:          "empty parameter",
+			passphrase:    passphrase,
+			filename:      "",
+			expectedBlank: true,
+			expectErr:     false,
 		},
 	}
 
