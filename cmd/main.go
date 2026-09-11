@@ -17,6 +17,7 @@ import (
 	"github.com/nicknickel/gossh/internal/log"
 	"github.com/nicknickel/gossh/internal/menus"
 	"github.com/nicknickel/gossh/internal/runcommand"
+	"github.com/nicknickel/gossh/internal/utils"
 )
 
 var updateVersion bool
@@ -142,7 +143,7 @@ func main() {
 			fmt.Printf("\nCould not rename tmux window: %v\n", err)
 		}
 
-		osCommand := []string{"ssh", "{{.FinalAddr}}"}
+		osCommand := utils.NewConnectTemplate()
 		out := runcommand.RunCommand(&c, osCommand, true)
 		fmt.Println(out)
 
@@ -157,7 +158,7 @@ func main() {
 		}
 
 		destName := path.Clean(path.Join(dest, path.Base(remoteSrc)))
-		osCommand := []string{"scp", "-rp", "{{.FinalAddr}}:" + remoteSrc, destName + "_{{.CleanTitle}}"}
+		osCommand := utils.NewReceiveTemplate(remoteSrc, destName)
 		title := fmt.Sprintf("Copying %v on {{.WindowName}} to %v_{{.CleanTitle}}", remoteSrc, destName)
 		runcommand.RunConcurrentCommandWithOutput(connItems, title, osCommand)
 
@@ -168,7 +169,7 @@ func main() {
 			break
 		}
 
-		osCommand := []string{"scp", "-rp", src, "{{.FinalAddr}}:" + remoteDest}
+		osCommand := utils.NewSendTemplate(src, remoteDest)
 		title := fmt.Sprintf("Copying %v to %v on {{.WindowName}}", src, remoteDest)
 		runcommand.RunConcurrentCommandWithOutput(connItems, title, osCommand)
 
@@ -180,8 +181,7 @@ func main() {
 			break
 		}
 
-		osCommand := []string{"ssh", "{{.FinalAddr}}"}
-		osCommand = append(osCommand, strings.Split(cmdToRun, " ")...)
+		osCommand := utils.NewCommandTemplate(cmdToRun)
 		title := fmt.Sprintf("running %v on {{.WindowName}}", cmdToRun)
 		runcommand.RunConcurrentCommandWithOutput(connItems, title, osCommand)
 
