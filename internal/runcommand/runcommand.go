@@ -10,13 +10,14 @@ import (
 	"strconv"
 	"strings"
 
+	"sync"
+	"text/template"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nicknickel/gossh/internal/connection"
 	"github.com/nicknickel/gossh/internal/encryption"
 	"github.com/nicknickel/gossh/internal/log"
 	"golang.org/x/term"
-	"sync"
-	"text/template"
 )
 
 // GetPasswordTemplate returns a slice of strings containing the sshpass

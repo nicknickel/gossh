@@ -12,6 +12,7 @@ import (
 	"github.com/nicknickel/gossh/internal/connection"
 	"github.com/nicknickel/gossh/internal/log"
 	"github.com/nicknickel/gossh/internal/testutils"
+	"github.com/nicknickel/gossh/internal/utils"
 )
 
 func TestGetPasswordTemplate(t *testing.T) {
@@ -160,7 +161,6 @@ func TestGetIdentityTemplate(t *testing.T) {
 		t.Run(tt.connItem.Name, func(t *testing.T) {
 			cmd, cleanup, err := GetIdentityTemplate(&tt.connItem)
 
-			// if !reflect.DeepEqual(cmd, tt.expectedCommand) {
 			if !cmp.Equal(cmd, tt.expectedCommand, opt) {
 				t.Errorf("GetIdentityTemplate() want command %v, got %v", tt.expectedCommand, cmd)
 			}
@@ -169,6 +169,53 @@ func TestGetIdentityTemplate(t *testing.T) {
 			}
 			if !reflect.DeepEqual(err, tt.thrownError) {
 				t.Errorf("GetIdentityTemplate() want error %v, got %v", tt.thrownError, err)
+			}
+		})
+	}
+}
+
+func TestRenderTemplateSlice(t *testing.T) {
+	tests := []struct {
+		connItem       connection.Item
+		template       []string
+		expectedOutput []string
+	}{
+		{
+			connItem: connection.Item{
+				Name: "connect_to_host",
+			},
+			template:       utils.NewConnectTemplate(),
+			expectedOutput: []string{"ssh", "connect_to_host"},
+		},
+		{
+			connItem: connection.Item{
+				Name: "command_to_run",
+			},
+			template:       utils.NewCommandTemplate("echo test"),
+			expectedOutput: []string{"ssh", "command_to_run", "echo", "test"},
+		},
+		{
+			connItem: connection.Item{
+				Name: "receive_file",
+			},
+			template:       utils.NewReceiveTemplate("/remote/file", "/tmp/file"),
+			expectedOutput: []string{"scp", "-rp", "receive_file:/remote/file", "/tmp/file_receive_file"},
+		},
+		{
+			connItem: connection.Item{
+				Name: "send_file",
+			},
+			template:       utils.NewSendTemplate("/local/file", "/remote/dest"),
+			expectedOutput: []string{"scp", "-rp", "/local/file", "send_file:/remote/dest"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.connItem.Name, func(t *testing.T) {
+			s := RenderTemplateSlice(&tt.template, tt.connItem)
+
+			if !reflect.DeepEqual(s, tt.expectedOutput) {
+				t.Errorf("RenderTemplateSlice() want  %v, got %v", tt.expectedOutput, s)
 			}
 		})
 	}
