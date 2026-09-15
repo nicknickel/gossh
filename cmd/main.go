@@ -23,12 +23,13 @@ import (
 var updateVersion bool
 var version string = "dev"
 var initialFilter string
+var fileToEncrypt string
 
 func init() {
 	log.Init()
 	flag.BoolVar(&updateVersion, "update", false, "Pass this flag to update the gossh version to latest github release and exit")
-	flag.StringVar(&initialFilter, "filter", "", "Pass this flag to filter the initial list of connections")
-	flag.StringVar(&initialFilter, "f", "", "shorthand for filter")
+	flag.StringVar(&initialFilter, "f", "", "Pass this flag to filter the initial list of connections")
+	flag.StringVar(&fileToEncrypt, "e", "", "Pass this flag to indicate a file to encrypt with the GOSSH_PASSPHRASE")
 }
 
 func updateExecutable() error {
@@ -112,6 +113,16 @@ func main() {
 			fmt.Printf("Could not update to latest version: %v\n", err)
 			os.Exit(2)
 		}
+		os.Exit(0)
+	}
+
+	if fileToEncrypt != "" {
+		fn := encryption.EncryptFile(fileToEncrypt)
+		if fn == "" {
+			fmt.Println("Unable to encrypt file. Check log for details.")
+			os.Exit(1)
+		}
+		fmt.Println("Encrypted file written to:", fn)
 		os.Exit(0)
 	}
 

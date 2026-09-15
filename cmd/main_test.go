@@ -158,6 +158,9 @@ func TestGetAuthentication(t *testing.T) {
 			if (got != tt.expected && tt.exactMatch) || (!strings.Contains(got, tt.expected) && !tt.exactMatch) {
 				t.Errorf("GetAuthentication() = %v, want %v", got, tt.expected)
 			}
+			if tt.item.Conn.IdentityFile != "" {
+				os.Remove(got)
+			}
 		})
 	}
 

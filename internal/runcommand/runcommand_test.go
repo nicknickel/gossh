@@ -170,6 +170,9 @@ func TestGetIdentityTemplate(t *testing.T) {
 			if !reflect.DeepEqual(err, tt.thrownError) {
 				t.Errorf("GetIdentityTemplate() want error %v, got %v", tt.thrownError, err)
 			}
+			if cleanup {
+				os.Remove(cmd[1])
+			}
 		})
 	}
 }

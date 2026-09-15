@@ -46,3 +46,17 @@ func CreateTempEncryptedFile(t *testing.T, passphrase string, plaintext string) 
 
 	return tmpfile.Name()
 }
+
+func CreateTempFile(t *testing.T, s string) string {
+	f, err := os.CreateTemp("", "gossh_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	f.WriteString(s)
+	f.Close()
+
+	t.Cleanup(func() {
+		os.Remove(f.Name())
+	})
+	return f.Name()
+}
