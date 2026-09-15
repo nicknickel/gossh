@@ -53,6 +53,16 @@ Several environment variables are also supported:
 * Output encrypted authentication information
 * Copy a file to one or more devices or recieve a file from one or more devices (Untested on Windows)
 
+## Command Flags
+```sh
+  -e string
+        Pass this flag to indicate a file to encrypt with the GOSSH_PASSPHRASE
+  -f string
+        Pass this flag to filter the initial list of connections
+  -update
+        Pass this flag to update the gossh version to latest github release and exit
+```
+
 ## Logging
 
 The application uses Bubbletea's logging mechanism. Logs are written to `~/.gossh.log` in the user's home directory. For debug-level logging, set the `GOSSH_DEBUG` environment variable to a non-empty value. If the log file cannot be opened, logging falls back to stderr.
