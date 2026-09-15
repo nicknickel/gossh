@@ -3,6 +3,7 @@ package encryption
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 
 	"io"
@@ -201,7 +202,69 @@ func TestGetEncryptedIdentity(t *testing.T) {
 			if got == "" && !tt.expectedBlank {
 				t.Errorf("GetEncryptedIdentity() = empty string, want non-empty string")
 			}
+			if got != "" {
+				os.Remove(got)
+			}
 			// Note: The function doesn't return error, but logs it. For testing, we might check logs, but simplifying here.
+		})
+	}
+}
+
+func TestEncryptFile(t *testing.T) {
+	internal_log.Logger = log.New(io.Discard)
+	// Create a temporary encrypted file
+	passphrase := "testpass"
+	plaintext := "secretpassword"
+	f1 := testutils.CreateTempFile(t, plaintext)
+
+	tests := []struct {
+		name       string
+		passphrase string
+		filename   string
+		expected   string
+		startsWith bool
+	}{
+		{
+			name:       "blank string",
+			passphrase: passphrase,
+			filename:   "",
+			expected:   "",
+			startsWith: false,
+		},
+		{
+			name:       "wrong file",
+			passphrase: passphrase,
+			filename:   "does_not_exist",
+			expected:   "",
+			startsWith: false,
+		},
+		{
+			name:       "no passphrase",
+			passphrase: "",
+			filename:   f1,
+			expected:   "",
+			startsWith: false,
+		},
+		{
+			name:       "valid encryption",
+			passphrase: passphrase,
+			filename:   f1,
+			expected:   os.TempDir() + "/gossh_test",
+			startsWith: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("GOSSH_PASSPHRASE", tt.passphrase)
+			defer os.Unsetenv("GOSSH_PASSPHRASE")
+
+			got := EncryptFile(tt.filename)
+			if got != tt.expected && (tt.startsWith && !strings.HasPrefix(got, tt.expected)) {
+				t.Errorf("EncryptFile() = %v, want %v", got, tt.expected)
+			} else {
+				os.Remove(got)
+			}
 		})
 	}
 }

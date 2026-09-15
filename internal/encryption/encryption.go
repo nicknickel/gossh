@@ -22,7 +22,7 @@ func GetPassphrase() string {
 	return passphrase
 }
 
-// GetEncryptedContents returns the contents of contents
+// GetEncryptedContents returns the contents
 // of an encrypted file encrypted with age. Returns ""
 // if unable to decrypt.
 func GetEncryptedContents(encFile string) string {
@@ -81,4 +81,55 @@ func GetEncryptedIdentity(encFile string) string {
 		return f.Name()
 	}
 	return ""
+}
+
+// EncryptFile returns the path to a file
+// that is an encrypted version of f.
+// Returns "" if unable. Encryption is
+// Passphrase-based using GOSSH_PASSPHRASE.
+func EncryptFile(src string) string {
+	if src == "" {
+		return ""
+	}
+
+	p := GetPassphrase()
+	if p == "" {
+		return ""
+	}
+
+	srcContents, err := os.ReadFile(src)
+	if err != nil || len(srcContents) == 0 {
+		log.Logger.Error("Failed to read unencrypted file or file empty", "file", src, "err", err)
+		return ""
+	}
+
+	pattern := fmt.Sprintf("%v.enc.*", filepath.Base(src))
+	f, err := os.CreateTemp("", pattern)
+	if err != nil {
+		log.Logger.Error("Failed to create temp encrypted file", "err", err)
+		return ""
+	}
+
+	r, err := age.NewScryptRecipient(p)
+	if err != nil {
+		log.Logger.Error("Could not create a new scrypt recipient", "err", err)
+		return ""
+	}
+
+	w, err := age.Encrypt(f, r)
+	if err != nil {
+		log.Logger.Error("Failed to create encrypted file", "err", err)
+		return ""
+	}
+
+	if _, err := w.Write(srcContents); err != nil {
+		log.Logger.Error("Failed to write temp encrypted file", "err", err)
+		return ""
+	}
+	if err := w.Close(); err != nil {
+		log.Logger.Error("Failed to close temp encrypted file", "err", err)
+		return ""
+	}
+
+	return f.Name()
 }
