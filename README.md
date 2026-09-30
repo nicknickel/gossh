@@ -6,7 +6,7 @@ A command line ssh connection and authentication manager. I wanted to learn go s
 1. Download latest release from Github releases and extract the executable into your path
 2. Create connections files (or copy from somewhere like git)
 3. Set `GOSSH_*` environment variables as desired
-3. Enjoy!
+4. Enjoy!
 
 ### Connections Files
 
@@ -32,10 +32,11 @@ The following keys are supported for a given connection:
 * `address`: The network address of the ssh connection. If not set, uses the connection name as the address.
 * `user`: The user to connect as. If not set, leaves blank which defaults to current user.
 * `comment`: Free text field to help indicate the connection. Helpful for filtering.
-* `passfile`: Path (full or relative) to the `age` encrypted file that contains the password for the ssh connection.
-* `identity`: Path (full or relative) to the `age` encrypted file that contains the private key data for the ssh connection.
+* `passfile`: Path (full or relative to config file) to the `age`* encrypted file that contains the password for the ssh connection.
+* `identity`: Path (full or relative to config file) to the `age`* encrypted file that contains the private key data for the ssh connection.
 
 Notes
+* Gossh provides a mechanism to encrypt files without the need for the `age` package
 * Gossh checks for and uses a passfile parameter first, then an identity file. If you have both parameters, the passfile will be used (assuming sshpass is installed and in the PATH).
 
 ### Environment Variables
@@ -49,6 +50,7 @@ Several environment variables are also supported:
 ## Features
 * Filtering list
 * Supports encrypted password files and private key files with `age`
+  * Also provides mechanism to encrypt files without needing `age` binary
 * Run command across multiple devices concurrently
 * Output encrypted authentication information
 * Copy a file to one or more devices or recieve a file from one or more devices (Untested on Windows)
