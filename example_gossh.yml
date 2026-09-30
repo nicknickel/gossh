@@ -20,3 +20,8 @@ aaaaaaa-2:
   user: opc
   comment: ccccccc
   passfile: /tmp/encrypted_password
+aaaaaaa-3:
+  address: 2.3.4.5
+  user: opc
+  comment: bbbbbbb
+  identity: ./encrypted_key.pem
